@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-// Importa la pantalla real de Login según tu estructura de carpetas
-import '../features/auth/login_screen.dart';
 import 'secure_storage.dart';
 
 /// Rutas nombradas de la app. Usar estas constantes en vez de
@@ -131,7 +129,9 @@ final GoRouter appRouter = GoRouter(
   routes: [
     GoRoute(
       path: AppRoutes.login,
-      builder: (context, state) => const LoginScreen(),
+      builder: (context, state) => const _PlaceholderScreen(
+        titulo: 'Login (módulo Auth pendiente)',
+      ),
     ),
     GoRoute(
       path: AppRoutes.recuperarPassword,

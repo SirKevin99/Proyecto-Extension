@@ -1,6 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Configuración e inicialización global de Supabase
+/// Configuración y acceso centralizado al cliente de Supabase.
+///
+/// Las credenciales se inyectan vía `--dart-define` para no exponer
+/// secretos en el repositorio:
+///
+/// flutter run -d chrome \
+///   --dart-define=SUPABASE_URL=https://xxxx.supabase.co \
+///   --dart-define=SUPABASE_ANON_KEY=xxxx
 class SupabaseConfig {
   SupabaseConfig._();
 
@@ -26,7 +33,7 @@ class SupabaseConfig {
 
     await Supabase.initialize(
       url: _url,
-      anonKey: _anonKey,
+      anonKey: _anonKey, // o publishableKey: _anonKey si usas v2.8+
       authOptions: const FlutterAuthClientOptions(
         authFlowType: AuthFlowType.pkce,
       ),
@@ -35,4 +42,6 @@ class SupabaseConfig {
 }
 
 /// Acceso rápido al cliente Supabase desde cualquier parte de la app.
-final supabase = Supabase.instance.client;
+///
+/// Uso: `supabase.from('eventos').select()`
+final SupabaseClient supabase = Supabase.instance.client;

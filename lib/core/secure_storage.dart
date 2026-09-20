@@ -2,14 +2,18 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Almacenamiento seguro de tokens de sesión y datos sensibles.
 ///
-/// Prohibido usar `shared_preferences` para JWTs (requerimiento de seguridad).
+/// Prohibido usar `shared_preferences` para JWTs (ver requerimiento
+/// de seguridad del proyecto). Esta clase es el único punto de acceso
+/// permitido al almacenamiento persistente de credenciales.
 class SecureStorageService {
   SecureStorageService._();
 
   static final SecureStorageService instance = SecureStorageService._();
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(),
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock,
     ),
@@ -38,7 +42,8 @@ class SecureStorageService {
       _storage.read(key: _keyRefreshToken);
 
   // ---------------------------------------------------------------
-  // Datos de sesión auxiliares
+  // Datos de sesión auxiliares (no sensibles, pero útiles para
+  // guardias de router y UI condicional por rol)
   // ---------------------------------------------------------------
 
   Future<void> guardarDatosUsuario({

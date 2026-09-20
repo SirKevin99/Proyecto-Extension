@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
+import '../features/auth/login_screen.dart';
+import '../features/auth/recuperar_password_screen.dart';
+import '../features/auth/registro_screen.dart';
+import '../features/home/home_estudiante_screen.dart';
+import '../features/home/home_docente_screen.dart';
 import 'secure_storage.dart';
+
 
 /// Rutas nombradas de la app. Usar estas constantes en vez de
 /// strings sueltos para evitar errores de tipeo al navegar.
 class AppRoutes {
   AppRoutes._();
+  static const String registro = '/registro';
 
   static const String login = '/login';
   static const String recuperarPassword = '/recuperar-password';
@@ -86,10 +92,11 @@ final GoRouter appRouter = GoRouter(
     final rutaActual = state.matchedLocation;
 
     final rutasPublicas = {
-      AppRoutes.login,
-      AppRoutes.recuperarPassword,
-      AppRoutes.validadorHash, // validación pública de certificados
-    };
+  AppRoutes.login,
+  AppRoutes.recuperarPassword,
+  AppRoutes.registro,
+  AppRoutes.validadorHash,
+};
 
     final esRutaPublica = rutasPublicas.contains(rutaActual);
 
@@ -128,29 +135,26 @@ final GoRouter appRouter = GoRouter(
   },
   routes: [
     GoRoute(
-      path: AppRoutes.login,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Login (módulo Auth pendiente)',
-      ),
-    ),
+  path: AppRoutes.login,
+  builder: (context, state) => const LoginScreen(),
+),
+GoRoute(
+  path: AppRoutes.recuperarPassword,
+  builder: (context, state) => const RecuperarPasswordScreen(),
+),
+GoRoute(
+  path: AppRoutes.registro,
+  builder: (context, state) => const RegistroScreen(),
+),
+
     GoRoute(
-      path: AppRoutes.recuperarPassword,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Recuperar contraseña (módulo Auth pendiente)',
-      ),
-    ),
-    GoRoute(
-      path: AppRoutes.homeEstudiante,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Home Estudiante (módulo Home pendiente)',
-      ),
-    ),
-    GoRoute(
-      path: AppRoutes.homeDocente,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Home Docente (módulo Home pendiente)',
-      ),
-    ),
+  path: AppRoutes.homeEstudiante,
+  builder: (context, state) => const HomeEstudianteScreen(), // En vez de _PlaceholderScreen
+),
+GoRoute(
+  path: AppRoutes.homeDocente,
+  builder: (context, state) => const HomeDocenteScreen(), // En vez de _PlaceholderScreen
+),
     GoRoute(
       path: AppRoutes.listaEventos,
       builder: (context, state) => const _PlaceholderScreen(

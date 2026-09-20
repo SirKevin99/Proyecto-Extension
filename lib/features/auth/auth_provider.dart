@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/router.dart';
 import '../../core/secure_storage.dart';
-// Asegúrate de que este archivo tenga la instancia de supabase
 import '../../core/supabase_client.dart';
 
 /// Estados posibles del proceso de autenticación.
@@ -36,9 +35,6 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(const AuthState());
 
-  // Referencia directa al cliente de Supabase (usa la instancia singleton si no está exportada libremente)
-  SupabaseClient get _supabase => Supabase.instance.client;
-
   /// Login por C.I.: resuelve el correo institucional vinculado a la
   /// cédula consultando la tabla `usuarios`, y autentica contra
   /// Supabase Auth con ese correo + password.
@@ -50,7 +46,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     try {
       // 1. Resolver correo institucional a partir de la C.I.
-      final resultado = await _supabase
+      //    Esta consulta debe estar permitida por RLS solo para
+      //    lectura de la columna `correo_institucional` y `rol`
+      //    (sin exponer datos sensibles de otros usuarios).
+      final resultado = await supabase
           .from('usuarios')
           .select('correo_institucional, rol')
           .eq('ci', ci)
@@ -68,7 +67,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final rol = rolDesdeString(resultado['rol'] as String?);
 
       // 2. Autenticar contra Supabase Auth con el correo resuelto.
-      final authResponse = await _supabase.auth.signInWithPassword(
+      final authResponse = await supabase.auth.signInWithPassword(
         email: correo,
         password: password,
       );
@@ -112,7 +111,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
-    await _supabase.auth.signOut();
+    await supabase.auth.signOut();
     await SecureStorageService.instance.limpiarSesion();
     SessionSnapshot.instance.limpiar();
     AppRouterRefresh.instance.refrescar();

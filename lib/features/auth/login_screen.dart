@@ -154,30 +154,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             const SizedBox(height: 8),
 
                             Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: cargando
-                                    ? null
-                                    : () => context
-                                        .push(AppRoutes.recuperarPassword),
-                                child: const Text('¿Olvidaste tu contraseña?'),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => context.push(AppRoutes.recuperarPassword),
+                  child: const Text('¿Olvidaste tu contraseña?'),
+                ),
+              ),
+              const SizedBox(height: 12),
 
-                            ElevatedButton(
-                              onPressed: cargando ? null : _submit,
-                              child: cargando
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: UniNorteColors.azulMarino,
-                                      ),
-                                    )
-                                  : const Text('Ingresar'),
-                            ),
+              ElevatedButton(
+                onPressed: cargando ? null : _submit,
+                child: cargando
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: UniNorteColors.azulMarino,
+                        ),
+                      )
+                    : const Text('Ingresar'),
+              ),
+              const SizedBox(height: 8),
+
+              TextButton(
+                onPressed: cargando ? null : () => context.push(AppRoutes.registro),
+                child: const Text('¿No tenés cuenta? Registrate'),
+              ),
                           ],
                         ),
                       ),

@@ -95,7 +95,7 @@ class _RecuperarPasswordScreenState
       );
 
       setState(() => _paso = _PasoRecuperacion.nuevaPassword);
-    } on AuthException catch (e) {
+    } on AuthException {
       _mostrarError('Código incorrecto o expirado.');
     } catch (_) {
       _mostrarError('No se pudo verificar el código. Intentá nuevamente.');

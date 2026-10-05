@@ -31,10 +31,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    ref.read(authProvider.notifier).login(
-          ci: _ciController.text.trim(),
-          password: _passwordController.text,
-        );
+   ref.read(authProvider.notifier).login(
+  identificador: _ciController.text.trim(), // Reemplazado 'ci:' por 'identificador:'
+  password: _passwordController.text,
+);
   }
 
   @override

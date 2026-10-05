@@ -7,14 +7,7 @@ import '../../core/router.dart';
 import '../../core/theme.dart';
 import 'eventos_provider.dart';
 
-const List<String> _categoriasDisponibles = [
-  'Académico',
-  'Cultural',
-  'Deportivo',
-  'Social',
-  'Salud',
-  'Tecnología',
-];
+
 
 class ListaEventosScreen extends ConsumerWidget {
   const ListaEventosScreen({super.key});
@@ -65,7 +58,7 @@ class ListaEventosScreen extends ConsumerWidget {
                       .update((f) => FiltrosEventos(
                           categoria: null, busqueda: f.busqueda)),
                 ),
-                ..._categoriasDisponibles.map(
+                ...categoriasEvento.map(
                   (cat) => Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: _ChipCategoria(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../features/home/home_admin_screen.dart';
+import '../features/eventos/crear_evento_screen.dart';
 
 import '../features/auth/login_screen.dart';
 import '../features/auth/recuperar_password_screen.dart';
@@ -223,11 +224,9 @@ final GoRouter appRouter = GoRouter(
   builder: (context, state) => const HomeAdminScreen(),
 ),
     GoRoute(
-      path: AppRoutes.crearEvento,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Crear evento (pendiente)',
-      ),
-    ),
+  path: AppRoutes.crearEvento,
+  builder: (context, state) => const CrearEventoScreen(),
+),
     GoRoute(
       path: AppRoutes.gestionAsistencia,
       builder: (context, state) => const _PlaceholderScreen(

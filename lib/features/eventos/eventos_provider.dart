@@ -1,7 +1,22 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/supabase_client.dart';
+/// Categorías disponibles. Las usan el filtro del catálogo (alumno)
+/// y el formulario de creación (admin).
+const List<String> categoriasEvento = [
+  'Académico',
+  'Cultural',
+  'Deportivo',
+  'Social',
+  'Salud',
+  'Tecnología',
+];
 
+const List<String> modalidadesEvento = [
+  'Presencial Obligatorio',
+  'Presencial Optativo',
+  'Virtual',
+];
 // ---------------------------------------------------------------
 // Modelo de dominio: Evento
 // ---------------------------------------------------------------
@@ -202,4 +217,58 @@ class InscripcionNotifier extends StateNotifier<AsyncValue<void>> {
 final inscripcionNotifierProvider =
     StateNotifierProvider.autoDispose<InscripcionNotifier, AsyncValue<void>>(
   (ref) => InscripcionNotifier(),
+);
+
+// ---------------------------------------------------------------
+// Acción del admin: crear evento
+// ---------------------------------------------------------------
+
+class CrearEventoNotifier extends StateNotifier<AsyncValue<void>> {
+  CrearEventoNotifier() : super(const AsyncValue.data(null));
+
+  /// `cupos_disponibles` arranca igual a `cupos_maximos`.
+  /// `creado_por` debe ser auth.uid(): la policy
+  /// `eventos_insert_admin` rechaza cualquier otro valor.
+  Future<bool> crear({
+    required String nombre,
+    String? descripcion,
+    required String categoria,
+    String? expositor,
+    required String fecha, // yyyy-MM-dd
+    required String horaInicio, // HH:mm:ss
+    String? horaFin,
+    required String ubicacion,
+    required String modalidad,
+    required int horasOtorgadas,
+    required int cuposMaximos,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      await supabase.from('eventos').insert({
+        'nombre': nombre,
+        'descripcion': descripcion,
+        'categoria': categoria,
+        'expositor': expositor,
+        'fecha': fecha,
+        'hora_inicio': horaInicio,
+        'hora_fin': horaFin,
+        'ubicacion': ubicacion,
+        'modalidad': modalidad,
+        'horas_otorgadas': horasOtorgadas,
+        'cupos_maximos': cuposMaximos,
+        'cupos_disponibles': cuposMaximos,
+        'creado_por': supabase.auth.currentUser!.id,
+      });
+      state = const AsyncValue.data(null);
+      return true;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return false;
+    }
+  }
+}
+
+final crearEventoNotifierProvider =
+    StateNotifierProvider.autoDispose<CrearEventoNotifier, AsyncValue<void>>(
+  (ref) => CrearEventoNotifier(),
 );

@@ -5,8 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/router.dart';
 import '../../core/theme.dart';
 import '../auth/auth_provider.dart';
-import 'home_provider.dart';
-
+import 'home_provider.dart'; // O el archivo donde esté definido el provider
 class HomeEstudianteScreen extends ConsumerWidget {
   const HomeEstudianteScreen({super.key});
 

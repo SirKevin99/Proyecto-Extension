@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../features/home/home_admin_screen.dart';
 import '../features/eventos/crear_evento_screen.dart';
+import '../features/asistencia/panel_asistencia_screen.dart';
 
 import '../features/auth/login_screen.dart';
 import '../features/auth/recuperar_password_screen.dart';
@@ -14,7 +15,9 @@ import 'secure_storage.dart';
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
 class AppRoutes {
   AppRoutes._();
+static const String sesionAsistencia = '/admin/eventos/:id/sesion';
 
+static String sesionAsistenciaPath(String id) => '/admin/eventos/$id/sesion';
   // --- Públicas ---
   static const String login = '/login';
   static const String recuperarPassword = '/recuperar-password';
@@ -247,12 +250,16 @@ final GoRouter appRouter = GoRouter(
     ),
 
     // ---------------- Validador temporal ----------------
-    GoRoute(
-      path: AppRoutes.homeValidador,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Panel del validador: QR y PIN (pendiente)',
-      ),
-    ),
+   GoRoute(
+  path: AppRoutes.homeValidador,
+  builder: (context, state) => const PanelAsistenciaScreen(),
+),
+GoRoute(
+  path: AppRoutes.sesionAsistencia,
+  builder: (context, state) => PanelAsistenciaScreen(
+    eventoId: state.pathParameters['id']!,
+  ),
+),
   ],
 );
 

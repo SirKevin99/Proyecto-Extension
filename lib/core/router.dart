@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/recuperar_password_screen.dart';
-import '../features/auth/registro_screen.dart';
 import '../features/home/home_estudiante_screen.dart';
 import '../features/home/home_docente_screen.dart';
+import '../features/eventos/detalle_evento_screen.dart';
 import 'secure_storage.dart';
 
 
@@ -12,7 +12,6 @@ import 'secure_storage.dart';
 /// strings sueltos para evitar errores de tipeo al navegar.
 class AppRoutes {
   AppRoutes._();
-  static const String registro = '/registro';
 
   static const String login = '/login';
   static const String recuperarPassword = '/recuperar-password';
@@ -94,7 +93,6 @@ final GoRouter appRouter = GoRouter(
     final rutasPublicas = {
   AppRoutes.login,
   AppRoutes.recuperarPassword,
-  AppRoutes.registro,
   AppRoutes.validadorHash,
 };
 
@@ -142,10 +140,6 @@ GoRoute(
   path: AppRoutes.recuperarPassword,
   builder: (context, state) => const RecuperarPasswordScreen(),
 ),
-GoRoute(
-  path: AppRoutes.registro,
-  builder: (context, state) => const RegistroScreen(),
-),
 
     GoRoute(
   path: AppRoutes.homeEstudiante,
@@ -161,12 +155,13 @@ GoRoute(
         titulo: 'Lista de Eventos (módulo Eventos pendiente)',
       ),
     ),
+    
     GoRoute(
-      path: AppRoutes.detalleEvento,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Detalle de Evento (módulo Eventos pendiente)',
-      ),
-    ),
+  path: AppRoutes.detalleEvento,
+  builder: (context, state) => DetalleEventoScreen(
+    eventoId: state.pathParameters['id']!,
+  ),
+),
     GoRoute(
       path: AppRoutes.crearEvento,
       builder: (context, state) => const _PlaceholderScreen(

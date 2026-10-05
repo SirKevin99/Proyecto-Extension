@@ -5,7 +5,6 @@ import '../../core/router.dart';
 import '../../core/secure_storage.dart';
 import '../../core/supabase_client.dart';
 
-/// Estados posibles del proceso de autenticación.
 enum AuthStatus { inicial, cargando, autenticado, error }
 
 class AuthState {
@@ -35,78 +34,95 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(const AuthState());
 
-  /// Login por C.I.: resuelve el correo institucional vinculado a la
-  /// cédula consultando la tabla `usuarios`, y autentica contra
-  /// Supabase Auth con ese correo + password.
+  static final RegExp _codigoValidador = RegExp(r'^VAL-\d{4}$');
+
+  /// [identificador] es la C.I. numérica (alumno / admin) o el código
+  /// `VAL-####` (validador temporal).
   Future<void> login({
-    required String ci,
+    required String identificador,
     required String password,
   }) async {
+    final id = identificador.trim().toUpperCase();
+    final esValidador = _codigoValidador.hasMatch(id);
+
     state = state.copyWith(status: AuthStatus.cargando, mensajeError: null);
 
     try {
-      // 1. Resolver correo institucional a partir de la C.I.
-      //    Esta consulta debe estar permitida por RLS solo para
-      //    lectura de la columna `correo_institucional` y `rol`
-      //    (sin exponer datos sensibles de otros usuarios).
-      final resultado = await supabase
-          .from('usuarios')
-          .select('correo_institucional, rol')
-          .eq('ci', ci)
+      // 1. Resolver el correo (el usuario aún no está autenticado, por
+      //    eso se usa la vista pública y acotada, no la tabla).
+      //    La vista excluye validadores vencidos o inactivos.
+      final resuelto = await supabase
+          .from('vista_resolucion_ci')
+          .select('correo_institucional')
+          .eq('ci', id)
           .maybeSingle();
 
-      if (resultado == null) {
-        state = state.copyWith(
-          status: AuthStatus.error,
-          mensajeError: 'La cédula ingresada no está registrada.',
+      if (resuelto == null) {
+        _fallar(
+          esValidador
+              ? 'El código no existe o su vigencia ya venció.'
+              : 'La cédula ingresada no está registrada.',
         );
         return;
       }
 
-      final correo = resultado['correo_institucional'] as String;
-      final rol = rolDesdeString(resultado['rol'] as String?);
-
-      // 2. Autenticar contra Supabase Auth con el correo resuelto.
+      // 2. Autenticar contra Supabase Auth.
       final authResponse = await supabase.auth.signInWithPassword(
-        email: correo,
+        email: resuelto['correo_institucional'] as String,
         password: password,
       );
 
       final session = authResponse.session;
-      if (session == null) {
-        state = state.copyWith(
-          status: AuthStatus.error,
-          mensajeError: 'No se pudo iniciar sesión. Verificá tu contraseña.',
+      final user = authResponse.user;
+      if (session == null || user == null) {
+        _fallar('No se pudo iniciar sesión. Verificá tu contraseña.');
+        return;
+      }
+
+      // 3. Rol real desde la fila propia (ya autenticado).
+      final perfil = await supabase
+          .from('usuarios')
+          .select('rol, activo, vigente_hasta')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      final rol = rolDesdeString(perfil?['rol'] as String?);
+      final activo = perfil?['activo'] as bool? ?? false;
+      final vigenteHasta = perfil?['vigente_hasta'] as String?;
+      final vencido = vigenteHasta != null &&
+          DateTime.parse(vigenteHasta).isBefore(DateTime.now());
+
+      if (perfil == null || rol == null || !activo || vencido) {
+        await supabase.auth.signOut();
+        _fallar(
+          rol == RolUsuario.validador || vencido
+              ? 'Tu acceso temporal ya venció.'
+              : 'Tu cuenta no tiene un perfil habilitado. '
+                  'Contactá al administrador.',
         );
         return;
       }
 
-      // 3. Guardar tokens y datos de sesión en almacenamiento seguro.
+      // 4. Persistir en almacenamiento seguro.
       await SecureStorageService.instance.guardarTokens(
         accessToken: session.accessToken,
         refreshToken: session.refreshToken ?? '',
       );
       await SecureStorageService.instance.guardarDatosUsuario(
-        ci: ci,
-        rol: resultado['rol'] as String? ?? 'alumno',
+        ci: id,
+        rol: perfil['rol'] as String,
       );
 
-      // 4. Refrescar snapshot de sesión para que el router reevalúe
-      //    el redirect y navegue al home correspondiente.
+      // 5. Refrescar el snapshot: el redirect del router lleva al home
+      //    que corresponda al rol.
       await SessionSnapshot.instance.cargarDesdeStorage();
       AppRouterRefresh.instance.refrescar();
 
       state = state.copyWith(status: AuthStatus.autenticado, rol: rol);
     } on AuthException catch (e) {
-      state = state.copyWith(
-        status: AuthStatus.error,
-        mensajeError: _mensajeAuthLegible(e.message),
-      );
-    } catch (e) {
-      state = state.copyWith(
-        status: AuthStatus.error,
-        mensajeError: 'Ocurrió un error inesperado. Intentá nuevamente.',
-      );
+      _fallar(_mensajeAuthLegible(e.message));
+    } catch (_) {
+      _fallar('Ocurrió un error inesperado. Intentá nuevamente.');
     }
   }
 
@@ -122,11 +138,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.inicial, mensajeError: null);
   }
 
-  String _mensajeAuthLegible(String mensajeOriginal) {
-    if (mensajeOriginal.toLowerCase().contains('invalid login credentials')) {
-      return 'Cédula o contraseña incorrecta.';
+  void _fallar(String mensaje) {
+    state = state.copyWith(status: AuthStatus.error, mensajeError: mensaje);
+  }
+
+  String _mensajeAuthLegible(String original) {
+    final texto = original.toLowerCase();
+    if (texto.contains('invalid login credentials')) {
+      return 'Identificación o contraseña incorrecta.';
     }
-    return mensajeOriginal;
+    if (texto.contains('banned')) {
+      return 'Tu acceso temporal ya venció.';
+    }
+    return 'No se pudo iniciar sesión. Intentá nuevamente.';
   }
 }
 

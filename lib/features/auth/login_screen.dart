@@ -105,24 +105,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                             TextFormField(
                               controller: _ciController,
-                              keyboardType: TextInputType.number,
+                              keyboardType: TextInputType.text,
+                              textCapitalization: TextCapitalization.characters,
                               textInputAction: TextInputAction.next,
+                              autocorrect: false,
                               decoration: const InputDecoration(
-                                labelText: 'Cédula de Identidad',
-                                prefixIcon: Icon(Icons.badge_outlined),
-                                hintText: 'Ej: 4567890',
+                              labelText: 'C.I. o código de validador',
+                              prefixIcon: Icon(Icons.badge_outlined),
+                              hintText: 'Ej: 4567890 o VAL-4821',
                               ),
                               validator: (valor) {
-                                if (valor == null || valor.trim().isEmpty) {
-                                  return 'Ingresá tu número de C.I.';
-                                }
-                                if (!RegExp(r'^\d{4,10}$')
-                                    .hasMatch(valor.trim())) {
-                                  return 'C.I. inválida';
-                                }
-                                return null;
+                              final v = valor?.trim().toUpperCase() ?? '';
+                              if (v.isEmpty) return 'Ingresá tu C.I. o tu código de validador';
+                              if (!RegExp(r'^(\d{4,10}|VAL-\d{4})$').hasMatch(v)) {
+                              return 'Usá tu C.I. (solo números) o el código VAL-0000';
+                              }
+                              return null;
                               },
-                            ),
+                              ),
                             const SizedBox(height: 16),
 
                             TextFormField(

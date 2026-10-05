@@ -50,10 +50,10 @@ class _RecuperarPasswordScreenState
 
     try {
       final resultado = await supabase
-          .from('usuarios')
-          .select('correo_institucional')
-          .eq('ci', _ciController.text.trim())
-          .maybeSingle();
+    .from('vista_resolucion_ci')   // antes: 'usuarios'
+    .select('correo_institucional')
+    .eq('ci', _ciController.text.trim())
+    .maybeSingle();
 
       if (resultado == null) {
         _mostrarError('La cédula ingresada no está registrada.');

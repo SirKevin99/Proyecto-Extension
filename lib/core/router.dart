@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../features/home/home_admin_screen.dart';
 
 import '../features/auth/login_screen.dart';
 import '../features/auth/recuperar_password_screen.dart';
@@ -218,11 +219,9 @@ final GoRouter appRouter = GoRouter(
 
     // ---------------- Administrador ----------------
     GoRoute(
-      path: AppRoutes.homeAdmin,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Panel de administración (pendiente)',
-      ),
-    ),
+  path: AppRoutes.homeAdmin,
+  builder: (context, state) => const HomeAdminScreen(),
+),
     GoRoute(
       path: AppRoutes.crearEvento,
       builder: (context, state) => const _PlaceholderScreen(

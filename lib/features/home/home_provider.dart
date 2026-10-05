@@ -32,21 +32,9 @@ class ProgresoEstudiante {
       (horasRequeridas - horasCompletadas).clamp(0, horasRequeridas);
 }
 
-class MetricasDocente {
-  final String nombreCompleto;
-  final int eventosActivos;
-  final int totalInscriptos;
-  final int pendientesValidacion;
-  final List<EventoResumen> proximosEventos;
-
-  const MetricasDocente({
-    required this.nombreCompleto,
-    required this.eventosActivos,
-    required this.totalInscriptos,
-    required this.pendientesValidacion,
-    required this.proximosEventos,
-  });
-}
+// ---------------------------------------------------------------
+// Panel de administración
+// ---------------------------------------------------------------
 
 class EventoResumen {
   final String id;
@@ -54,6 +42,7 @@ class EventoResumen {
   final DateTime fecha;
   final int inscriptos;
   final int cuposMaximos;
+  final int pendientes;
 
   const EventoResumen({
     required this.id,
@@ -61,61 +50,32 @@ class EventoResumen {
     required this.fecha,
     required this.inscriptos,
     required this.cuposMaximos,
+    required this.pendientes,
   });
 }
 
-// ---------------------------------------------------------------
-// Provider: progreso del estudiante autenticado
-// ---------------------------------------------------------------
+class MetricasAdmin {
+  final String nombreCompleto;
+  final int eventosActivos;
+  final int totalInscriptos;
+  final int pendientesValidacion;
+  final int validadoresActivos;
+  final List<EventoResumen> proximosEventos;
+  final List<EventoResumen> eventosPorRevisar;
 
-final progresoEstudianteProvider =
-    FutureProvider.autoDispose<ProgresoEstudiante>((ref) async {
-  final userId = supabase.auth.currentUser!.id;
+  const MetricasAdmin({
+    required this.nombreCompleto,
+    required this.eventosActivos,
+    required this.totalInscriptos,
+    required this.pendientesValidacion,
+    required this.validadoresActivos,
+    required this.proximosEventos,
+    required this.eventosPorRevisar,
+  });
+}
 
-  final perfil = await supabase
-      .from('usuarios')
-      .select('nombre_completo, carrera, horas_requeridas')
-      .eq('id', userId)
-      .single();
-
-  // Traemos las inscripciones del alumno con las horas otorgadas
-  // por cada evento, para sumar solo las de asistencia confirmada.
-  final inscripciones = await supabase
-      .from('inscripciones')
-      .select('asistencia_confirmada, eventos(horas_otorgadas)')
-      .eq('usuario_id', userId);
-
-  int horasCompletadas = 0;
-  int pendientes = 0;
-
-  for (final fila in inscripciones as List) {
-    final confirmada = fila['asistencia_confirmada'] as bool? ?? false;
-    final evento = fila['eventos'] as Map<String, dynamic>?;
-    final horas = evento?['horas_otorgadas'] as int? ?? 0;
-
-    if (confirmada) {
-      horasCompletadas += horas;
-    } else {
-      pendientes += 1;
-    }
-  }
-
-  return ProgresoEstudiante(
-    nombreCompleto: perfil['nombre_completo'] as String,
-    carrera: perfil['carrera'] as String,
-    horasCompletadas: horasCompletadas,
-    horasRequeridas: perfil['horas_requeridas'] as int? ?? 120,
-    eventosInscriptos: (inscripciones).length,
-    eventosPendientesAsistencia: pendientes,
-  );
-});
-
-// ---------------------------------------------------------------
-// Provider: métricas del docente autenticado
-// ---------------------------------------------------------------
-
-final metricasDocenteProvider =
-    FutureProvider.autoDispose<MetricasDocente>((ref) async {
+final metricasAdminProvider =
+    FutureProvider.autoDispose<MetricasAdmin>((ref) async {
   final userId = supabase.auth.currentUser!.id;
 
   final perfil = await supabase
@@ -124,52 +84,71 @@ final metricasDocenteProvider =
       .eq('id', userId)
       .single();
 
+  // RLS: el admin ve todos los eventos e inscripciones.
   final eventos = await supabase
       .from('eventos')
       .select(
-        'id, nombre, fecha, cupos_maximos, cupos_disponibles, activo, inscripciones(id, asistencia_confirmada)',
+        'id, nombre, fecha, cupos_maximos, activo, '
+        'inscripciones(id, asistencia_confirmada)',
       )
-      .eq('creado_por', userId)
       .order('fecha');
+
+  final validadores = await supabase
+      .from('usuarios')
+      .select('id')
+      .eq('rol', 'validador')
+      .eq('activo', true)
+      .gt('vigente_hasta', DateTime.now().toUtc().toIso8601String());
+
+  final hoy = DateTime.now();
+  final hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);
 
   int eventosActivos = 0;
   int totalInscriptos = 0;
   int pendientesValidacion = 0;
   final proximos = <EventoResumen>[];
-
-  final hoy = DateTime.now();
-  final hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);
+  final porRevisar = <EventoResumen>[];
 
   for (final fila in eventos as List) {
     final activo = fila['activo'] as bool? ?? false;
-    final inscripcionesEvento =
-        (fila['inscripciones'] as List?) ?? const [];
-
-    if (activo) eventosActivos += 1;
-    totalInscriptos += inscripcionesEvento.length;
-    pendientesValidacion += inscripcionesEvento
+    final inscripciones = (fila['inscripciones'] as List?) ?? const [];
+    final pendientes = inscripciones
         .where((i) => (i['asistencia_confirmada'] as bool? ?? false) == false)
         .length;
+    final fecha = DateTime.parse(fila['fecha'] as String);
+    final yaOcurrio = fecha.isBefore(hoySinHora);
 
-    final fechaEvento = DateTime.parse(fila['fecha'] as String);
-    if (!fechaEvento.isBefore(hoySinHora)) {
-      proximos.add(EventoResumen(
-        id: fila['id'] as String,
-        nombre: fila['nombre'] as String,
-        fecha: fechaEvento,
-        inscriptos: inscripcionesEvento.length,
-        cuposMaximos: fila['cupos_maximos'] as int,
-      ));
+    final resumen = EventoResumen(
+      id: fila['id'] as String,
+      nombre: fila['nombre'] as String,
+      fecha: fecha,
+      inscriptos: inscripciones.length,
+      cuposMaximos: fila['cupos_maximos'] as int,
+      pendientes: pendientes,
+    );
+
+    if (activo) eventosActivos += 1;
+    totalInscriptos += inscripciones.length;
+
+    if (yaOcurrio) {
+      // Solo los eventos ya realizados tienen "pendientes" con sentido.
+      pendientesValidacion += pendientes;
+      if (pendientes > 0) porRevisar.add(resumen);
+    } else if (activo) {
+      proximos.add(resumen);
     }
   }
 
   proximos.sort((a, b) => a.fecha.compareTo(b.fecha));
+  porRevisar.sort((a, b) => b.fecha.compareTo(a.fecha)); // más reciente primero
 
-  return MetricasDocente(
+  return MetricasAdmin(
     nombreCompleto: perfil['nombre_completo'] as String,
     eventosActivos: eventosActivos,
     totalInscriptos: totalInscriptos,
     pendientesValidacion: pendientesValidacion,
+    validadoresActivos: (validadores as List).length,
     proximosEventos: proximos.take(5).toList(),
+    eventosPorRevisar: porRevisar.take(5).toList(),
   );
 });

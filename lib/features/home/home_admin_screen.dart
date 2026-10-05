@@ -278,7 +278,7 @@ class _AccesoRapido extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
+        onTap: () => context.push(AppRoutes.sesionAsistenciaPath(evento.id)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(

@@ -6,6 +6,9 @@ import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import 'eventos_provider.dart';
 
+import 'package:go_router/go_router.dart';
+import '../../core/router.dart';
+
 class DetalleEventoScreen extends ConsumerWidget {
   final String eventoId;
   const DetalleEventoScreen({super.key, required this.eventoId});
@@ -172,10 +175,23 @@ class DetalleEventoScreen extends ConsumerWidget {
         );
 
       case EstadoInscripcion.inscriptoPendiente:
-        return _EstadoInscripcionBanner(
-          icono: Icons.hourglass_top_outlined,
-          texto: 'Ya estás inscripto. Pendiente de validación de asistencia',
-          color: UniNorteColors.dorado,
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _EstadoInscripcionBanner(
+              icono: Icons.hourglass_top_outlined,
+              texto: 'Inscripto. Falta registrar tu asistencia',
+              color: UniNorteColors.dorado,
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              onPressed: () => context
+                  .push(AppRoutes.marcarAsistenciaPath(datos.evento.id)),
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Marcar asistencia'),
+            ),
+          ],
         );
 
       case EstadoInscripcion.noInscripto:

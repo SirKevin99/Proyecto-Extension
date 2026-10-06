@@ -11,6 +11,8 @@ import '../features/eventos/lista_eventos_screen.dart';
 import '../features/home/home_estudiante_screen.dart';
 import 'secure_storage.dart';
 
+import '../features/asistencia/marcar_asistencia_screen.dart';
+
 /// Rutas nombradas de la app. Las rutas de cada rol viven bajo un
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
 class AppRoutes {
@@ -196,10 +198,10 @@ final GoRouter appRouter = GoRouter(
         eventoId: state.pathParameters['id']!,
       ),
     ),
-    GoRoute(
+   GoRoute(
       path: AppRoutes.marcarAsistencia,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Marcar asistencia (código / PIN)',
+      builder: (context, state) => MarcarAsistenciaScreen(
+        eventoId: state.pathParameters['id']!,
       ),
     ),
     GoRoute(

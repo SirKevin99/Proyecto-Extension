@@ -278,7 +278,7 @@ class _AccesoRapido extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push(AppRoutes.sesionAsistenciaPath(evento.id)),
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -330,7 +330,7 @@ class _TarjetaEvento extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () =>
-            context.push(AppRoutes.gestionAsistenciaPath(evento.id)),
+            context.push(AppRoutes.sesionAsistenciaPath(evento.id)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(

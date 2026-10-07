@@ -48,3 +48,6 @@ app.*.map.json
 .widget_preview/
 lib/core/oracleJdk-27/
 lib/core/oracleJdk-27/
+
+# Credenciales locales de Supabase
+lib/core/supabase_secrets.dart

@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'supabase_secrets.dart';
 
 /// Configuración y acceso centralizado al cliente de Supabase.
 ///
@@ -8,17 +9,21 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// flutter run -d chrome \
 ///   --dart-define=SUPABASE_URL=https://xxxx.supabase.co \
 ///   --dart-define=SUPABASE_ANON_KEY=xxxx
+/// 
+/// /// Las credenciales salen por defecto de `supabase_secrets.dart`
+/// (archivo local, fuera de Git). Se pueden sobrescribir con
+/// `--dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...`.
 class SupabaseConfig {
   SupabaseConfig._();
 
   static const String _url = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: '',
+    defaultValue: SupabaseSecrets.url,
   );
 
   static const String _anonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: '',
+    defaultValue: SupabaseSecrets.anonKey,
   );
 
   /// Dominio institucional fijo usado para resolver C.I. -> correo.
@@ -28,8 +33,8 @@ class SupabaseConfig {
   static Future<void> init() async {
   if (_url.isEmpty || _anonKey.isEmpty) {
     throw StateError(
-      'Faltan SUPABASE_URL y SUPABASE_ANON_KEY. '
-      'Ejecutá la app con --dart-define para ambas.',
+      'Faltan las credenciales de Supabase. '
+      'Completá lib/core/supabase_secrets.dart o usá --dart-define.',
     );
   }
 

@@ -51,3 +51,6 @@ lib/core/oracleJdk-27/
 
 # Credenciales locales de Supabase
 lib/core/supabase_secrets.dart
+
+# Archivos temporales de la CLI de Supabase
+supabase/.temp/

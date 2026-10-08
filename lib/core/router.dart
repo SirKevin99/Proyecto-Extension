@@ -12,6 +12,7 @@ import '../features/home/home_estudiante_screen.dart';
 import 'secure_storage.dart';
 
 import '../features/asistencia/marcar_asistencia_screen.dart';
+import '../features/asistencia/gestion_asistencia_screen.dart';
 
 /// Rutas nombradas de la app. Las rutas de cada rol viven bajo un
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
@@ -234,8 +235,8 @@ final GoRouter appRouter = GoRouter(
 ),
     GoRoute(
       path: AppRoutes.gestionAsistencia,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Corrección de asistencia (pendiente)',
+      builder: (context, state) => GestionAsistenciaScreen(
+        eventoId: state.pathParameters['id']!,
       ),
     ),
     GoRoute(

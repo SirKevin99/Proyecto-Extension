@@ -133,7 +133,7 @@ class HomeAdminScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 28),
 
-        Text('Gestión de usuarios',
+        Text('Accesos de gestión',
             style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 12),
         _AccesoRapido(
@@ -148,6 +148,14 @@ class HomeAdminScreen extends ConsumerWidget {
           titulo: 'Alta de validador',
           subtitulo: 'Acceso temporal para marcar asistencia',
           onTap: () => context.push(AppRoutes.altaValidador),
+        ),
+
+        const SizedBox(height: 10),
+        _AccesoRapido(
+          icono: Icons.event_note_outlined,
+          titulo: 'Todos los eventos',
+          subtitulo: 'Corregir asistencia y abrir sesiones',
+          onTap: () => context.push(AppRoutes.adminEventos),
         ),
         const SizedBox(height: 28),
 

@@ -13,6 +13,7 @@ import 'secure_storage.dart';
 
 import '../features/asistencia/marcar_asistencia_screen.dart';
 import '../features/asistencia/gestion_asistencia_screen.dart';
+import '../features/eventos/admin_eventos_screen.dart';
 
 /// Rutas nombradas de la app. Las rutas de cada rol viven bajo un
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
@@ -37,6 +38,7 @@ static String sesionAsistenciaPath(String id) => '/admin/eventos/$id/sesion';
 
   // --- Administrador (prefijo /admin) ---
   static const String homeAdmin = '/admin';
+  static const String adminEventos = '/admin/eventos';
   static const String crearEvento = '/admin/eventos/crear';
   static const String gestionAsistencia = '/admin/eventos/:id/asistencia';
   static const String altaUsuario = '/admin/usuarios/nuevo';
@@ -226,13 +228,17 @@ final GoRouter appRouter = GoRouter(
 
     // ---------------- Administrador ----------------
     GoRoute(
-  path: AppRoutes.homeAdmin,
-  builder: (context, state) => const HomeAdminScreen(),
-),
+      path: AppRoutes.homeAdmin,
+      builder: (context, state) => const HomeAdminScreen(),
+    ),
     GoRoute(
-  path: AppRoutes.crearEvento,
-  builder: (context, state) => const CrearEventoScreen(),
-),
+      path: AppRoutes.adminEventos,
+      builder: (context, state) => const AdminEventosScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.crearEvento,
+      builder: (context, state) => const CrearEventoScreen(),
+    ),
     GoRoute(
       path: AppRoutes.gestionAsistencia,
       builder: (context, state) => GestionAsistenciaScreen(

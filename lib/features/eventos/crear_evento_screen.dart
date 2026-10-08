@@ -7,6 +7,8 @@ import '../../core/theme.dart';
 import '../home/home_provider.dart';
 import 'eventos_provider.dart';
 
+import 'admin_eventos_provider.dart';
+
 class CrearEventoScreen extends ConsumerStatefulWidget {
   const CrearEventoScreen({super.key});
 
@@ -139,6 +141,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
 
     ref.invalidate(metricasAdminProvider);
     ref.invalidate(catalogoEventosProvider);
+    ref.invalidate(adminEventosProvider);
 
     messenger.showSnackBar(
       const SnackBar(

@@ -15,6 +15,9 @@ import '../features/asistencia/marcar_asistencia_screen.dart';
 import '../features/asistencia/gestion_asistencia_screen.dart';
 import '../features/eventos/admin_eventos_screen.dart';
 
+import '../features/admin/alta_usuario_screen.dart';
+import '../features/admin/alta_validador_screen.dart';
+
 /// Rutas nombradas de la app. Las rutas de cada rol viven bajo un
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
 class AppRoutes {
@@ -247,15 +250,11 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.altaUsuario,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Alta de usuario (pendiente)',
-      ),
+      builder: (context, state) => const AltaUsuarioScreen(),
     ),
     GoRoute(
       path: AppRoutes.altaValidador,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Alta de validador (pendiente)',
-      ),
+      builder: (context, state) => const AltaValidadorScreen(),
     ),
 
     // ---------------- Validador temporal ----------------

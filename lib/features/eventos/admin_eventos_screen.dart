@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/router.dart';
 import '../../core/theme.dart';
 import 'admin_eventos_provider.dart';
 
-enum _Filtro { todos, proximos, pasados, inactivos }
+enum _Filtro { todos, vigentes, finalizados, cancelados }
 
 class AdminEventosScreen extends ConsumerStatefulWidget {
   const AdminEventosScreen({super.key});
@@ -25,9 +26,9 @@ class _AdminEventosScreenState extends ConsumerState<AdminEventosScreen> {
     return todos.where((e) {
       final coincideFiltro = switch (_filtro) {
         _Filtro.todos => true,
-        _Filtro.proximos => e.activo && !e.yaOcurrio,
-        _Filtro.pasados => e.yaOcurrio,
-        _Filtro.inactivos => !e.activo,
+        _Filtro.vigentes => e.estado == EstadoEvento.vigente,
+        _Filtro.finalizados => e.estado == EstadoEvento.finalizado,
+        _Filtro.cancelados => e.estado == EstadoEvento.cancelado,
       };
       final coincideTexto = q.isEmpty || e.nombre.toLowerCase().contains(q);
       return coincideFiltro && coincideTexto;
@@ -95,9 +96,9 @@ class _AdminEventosScreenState extends ConsumerState<AdminEventosScreen> {
                     ChoiceChip(
                       label: Text(switch (f) {
                         _Filtro.todos => 'Todos',
-                        _Filtro.proximos => 'Próximos',
-                        _Filtro.pasados => 'Pasados',
-                        _Filtro.inactivos => 'Inactivos',
+                        _Filtro.vigentes => 'Vigentes',
+                        _Filtro.finalizados => 'Finalizados',
+                        _Filtro.cancelados => 'Cancelados',
                       }),
                       selected: _filtro == f,
                       selectedColor: UniNorteColors.dorado,
@@ -134,12 +135,75 @@ class _AdminEventosScreenState extends ConsumerState<AdminEventosScreen> {
   }
 }
 
-class _TarjetaEventoAdmin extends StatelessWidget {
+enum _Accion { finalizar, cancelar }
+
+class _TarjetaEventoAdmin extends ConsumerWidget {
   final EventoAdmin evento;
   const _TarjetaEventoAdmin({required this.evento});
 
+  Future<void> _confirmarYEjecutar(
+      BuildContext context, WidgetRef ref, _Accion accion) async {
+    final esCancelar = accion == _Accion.cancelar;
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(esCancelar ? 'Cancelar evento' : 'Finalizar evento'),
+        content: Text(
+          esCancelar
+              ? '"${evento.nombre}" se marcará como cancelado. Se cerrará la '
+                  'sesión de asistencia, se deshabilitará su validador y no '
+                  'se acreditarán horas. Esta acción no se puede deshacer.'
+              : '"${evento.nombre}" se marcará como finalizado. Se cerrará la '
+                  'sesión de asistencia y se deshabilitará su validador. '
+                  'Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: esCancelar
+                ? FilledButton.styleFrom(
+                    backgroundColor: UniNorteColors.error)
+                : null,
+            child: Text(esCancelar ? 'Cancelar evento' : 'Finalizar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmado != true) return;
+
+    try {
+      if (esCancelar) {
+        await cancelarEvento(evento.id);
+      } else {
+        await finalizarEvento(evento.id);
+      }
+      ref.invalidate(adminEventosProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(esCancelar
+              ? 'Evento cancelado'
+              : 'Evento finalizado'),
+        ));
+      }
+    } catch (e) {
+      final mensaje = e is PostgrestException
+          ? e.message
+          : 'No se pudo cambiar el estado del evento';
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(mensaje)));
+      }
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final formatoFecha = DateFormat('dd MMM yyyy', 'es');
     final ocupacion = evento.cuposMaximos == 0
         ? 0.0
@@ -161,10 +225,24 @@ class _TarjetaEventoAdmin extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (!evento.activo)
-                  const _Etiqueta('Inactivo', UniNorteColors.error)
-                else if (evento.yaOcurrio)
-                  const _Etiqueta('Pasado', UniNorteColors.textoSecundario),
+                const SizedBox(width: 8),
+                _EtiquetaEstado(evento.estado),
+                if (evento.vigente)
+                  PopupMenuButton<_Accion>(
+                    tooltip: 'Más acciones',
+                    padding: EdgeInsets.zero,
+                    onSelected: (a) => _confirmarYEjecutar(context, ref, a),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: _Accion.finalizar,
+                        child: Text('Finalizar evento'),
+                      ),
+                      PopupMenuItem(
+                        value: _Accion.cancelar,
+                        child: Text('Cancelar evento'),
+                      ),
+                    ],
+                  ),
               ],
             ),
             const SizedBox(height: 6),
@@ -215,17 +293,6 @@ class _TarjetaEventoAdmin extends StatelessWidget {
                     style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),
-            if (evento.pendientes > 0) ...[
-              const SizedBox(height: 6),
-              Text(
-                '${evento.pendientes} sin asistencia',
-                style: const TextStyle(
-                  color: UniNorteColors.azulMarino,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -240,7 +307,7 @@ class _TarjetaEventoAdmin extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: evento.activo
+                    onPressed: evento.vigente
                         ? () => context
                             .push(AppRoutes.sesionAsistenciaPath(evento.id))
                         : null,
@@ -257,13 +324,21 @@ class _TarjetaEventoAdmin extends StatelessWidget {
   }
 }
 
-class _Etiqueta extends StatelessWidget {
-  final String texto;
-  final Color color;
-  const _Etiqueta(this.texto, this.color);
+class _EtiquetaEstado extends StatelessWidget {
+  final EstadoEvento estado;
+  const _EtiquetaEstado(this.estado);
 
   @override
   Widget build(BuildContext context) {
+    final (texto, color) = switch (estado) {
+      EstadoEvento.vigente => ('Vigente', Colors.green.shade700),
+      EstadoEvento.finalizado => (
+          'Finalizado',
+          UniNorteColors.textoSecundario
+        ),
+      EstadoEvento.cancelado => ('Cancelado', UniNorteColors.error),
+    };
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(

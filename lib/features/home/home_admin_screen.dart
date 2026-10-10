@@ -86,38 +86,22 @@ class HomeAdminScreen extends ConsumerWidget {
         const SizedBox(height: 4),
         Text('Resumen general de extensión',
             style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
+
+        _AccesoDestacado(
+          vigentes: m.eventosVigentes,
+          onTap: () => context.push(AppRoutes.adminEventos),
+        ),
+        const SizedBox(height: 16),
 
         Row(
           children: [
-            Expanded(
-              child: _TarjetaMetrica(
-                icono: Icons.event_note_outlined,
-                valor: '${m.eventosActivos}',
-                etiqueta: 'Eventos activos',
-                color: UniNorteColors.azulMarino,
-              ),
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: _TarjetaMetrica(
                 icono: Icons.groups_outlined,
                 valor: '${m.totalInscriptos}',
                 etiqueta: 'Inscripciones',
                 color: UniNorteColors.azulMarino,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _TarjetaMetrica(
-                icono: Icons.pending_actions_outlined,
-                valor: '${m.pendientesValidacion}',
-                etiqueta: 'Sin asistencia (eventos pasados)',
-                color: UniNorteColors.dorado,
               ),
             ),
             const SizedBox(width: 12),
@@ -149,39 +133,22 @@ class HomeAdminScreen extends ConsumerWidget {
           subtitulo: 'Acceso temporal para marcar asistencia',
           onTap: () => context.push(AppRoutes.altaValidador),
         ),
-
         const SizedBox(height: 10),
         _AccesoRapido(
           icono: Icons.event_note_outlined,
           titulo: 'Todos los eventos',
-          subtitulo: 'Corregir asistencia y abrir sesiones',
+          subtitulo: 'Vigentes, finalizados y cancelados',
           onTap: () => context.push(AppRoutes.adminEventos),
         ),
         const SizedBox(height: 28),
 
-        Text('Por revisar', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 4),
-        Text('Eventos pasados con inscriptos sin asistencia',
-            style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 12),
-        if (m.eventosPorRevisar.isEmpty)
-          const _SinEventos(texto: 'No hay asistencias pendientes de revisión')
-        else
-          ...m.eventosPorRevisar.map(
-            (e) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _TarjetaEvento(evento: e, mostrarPendientes: true),
-            ),
-          ),
-        const SizedBox(height: 18),
-
-        Text('Próximos eventos',
+        Text('Eventos vigentes',
             style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 12),
-        if (m.proximosEventos.isEmpty)
-          const _SinEventos(texto: 'No hay eventos próximos')
+        if (m.eventosVigentesLista.isEmpty)
+          const _SinEventos(texto: 'No hay eventos vigentes')
         else
-          ...m.proximosEventos.map(
+          ...m.eventosVigentesLista.map(
             (e) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _TarjetaEvento(evento: e),
@@ -210,6 +177,66 @@ class HomeAdminScreen extends ConsumerWidget {
             child: const Text('Cerrar sesión'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AccesoDestacado extends StatelessWidget {
+  final int vigentes;
+  final VoidCallback onTap;
+
+  const _AccesoDestacado({required this.vigentes, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: UniNorteColors.azulMarino,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: UniNorteColors.dorado,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.event_available,
+                    color: UniNorteColors.azulMarino, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$vigentes',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      vigentes == 1 ? 'Evento vigente' : 'Eventos vigentes',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.white),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -323,9 +350,8 @@ class _AccesoRapido extends StatelessWidget {
 
 class _TarjetaEvento extends StatelessWidget {
   final EventoResumen evento;
-  final bool mostrarPendientes;
 
-  const _TarjetaEvento({required this.evento, this.mostrarPendientes = false});
+  const _TarjetaEvento({required this.evento});
 
   @override
   Widget build(BuildContext context) {
@@ -337,11 +363,8 @@ class _TarjetaEvento extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push(
-          mostrarPendientes
-              ? AppRoutes.gestionAsistenciaPath(evento.id)
-              : AppRoutes.sesionAsistenciaPath(evento.id),
-        ),
+        onTap: () =>
+            context.push(AppRoutes.gestionAsistenciaPath(evento.id)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -367,27 +390,10 @@ class _TarjetaEvento extends StatelessWidget {
                   const Icon(Icons.calendar_today_outlined,
                       size: 14, color: UniNorteColors.textoSecundario),
                   const SizedBox(width: 6),
-                  Text(formatoFecha.format(evento.fecha),
-                      style: Theme.of(context).textTheme.bodyMedium),
-                  if (mostrarPendientes) ...[
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: UniNorteColors.dorado.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${evento.pendientes} sin asistencia',
-                        style: const TextStyle(
-                          color: UniNorteColors.azulMarino,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                  Text(
+                    '${formatoFecha.format(evento.fecha)} · ${evento.horaInicio}',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ],
               ),
               const SizedBox(height: 10),

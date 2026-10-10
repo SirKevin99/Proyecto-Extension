@@ -125,13 +125,12 @@ class _AltaValidadorScreenState extends ConsumerState<AltaValidadorScreen> {
               ],
             ),
             data: (todos) {
-              final elegibles =
-                  todos.where((e) => e.activo && !e.yaOcurrio).toList()
-                    ..sort((a, b) => a.fecha.compareTo(b.fecha));
+              final elegibles = todos.where((e) => e.vigente).toList()
+                ..sort((a, b) => a.fecha.compareTo(b.fecha));
 
               if (elegibles.isEmpty) {
                 return const Text(
-                  'No hay eventos activos próximos. Creá uno primero.',
+                  'No hay eventos vigentes. Creá uno primero.',
                 );
               }
               final fmt = DateFormat('dd MMM yyyy', 'es');

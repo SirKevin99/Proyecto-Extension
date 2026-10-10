@@ -40,37 +40,33 @@ class EventoResumen {
   final String id;
   final String nombre;
   final DateTime fecha;
+  final String horaInicio;
   final int inscriptos;
   final int cuposMaximos;
-  final int pendientes;
 
   const EventoResumen({
     required this.id,
     required this.nombre,
     required this.fecha,
+    required this.horaInicio,
     required this.inscriptos,
     required this.cuposMaximos,
-    required this.pendientes,
   });
 }
 
 class MetricasAdmin {
   final String nombreCompleto;
-  final int eventosActivos;
+  final int eventosVigentes;
   final int totalInscriptos;
-  final int pendientesValidacion;
   final int validadoresActivos;
-  final List<EventoResumen> proximosEventos;
-  final List<EventoResumen> eventosPorRevisar;
+  final List<EventoResumen> eventosVigentesLista;
 
   const MetricasAdmin({
     required this.nombreCompleto,
-    required this.eventosActivos,
+    required this.eventosVigentes,
     required this.totalInscriptos,
-    required this.pendientesValidacion,
     required this.validadoresActivos,
-    required this.proximosEventos,
-    required this.eventosPorRevisar,
+    required this.eventosVigentesLista,
   });
 }
 
@@ -88,8 +84,8 @@ final metricasAdminProvider =
   final eventos = await supabase
       .from('eventos')
       .select(
-        'id, nombre, fecha, cupos_maximos, activo, '
-        'inscripciones(id, asistencia_confirmada)',
+        'id, nombre, fecha, hora_inicio, cupos_maximos, estado, '
+        'inscripciones(id)',
       )
       .order('fecha');
 
@@ -100,56 +96,33 @@ final metricasAdminProvider =
       .eq('activo', true)
       .gt('vigente_hasta', DateTime.now().toUtc().toIso8601String());
 
-  final hoy = DateTime.now();
-  final hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);
-
-  int eventosActivos = 0;
   int totalInscriptos = 0;
-  int pendientesValidacion = 0;
-  final proximos = <EventoResumen>[];
-  final porRevisar = <EventoResumen>[];
+  final vigentes = <EventoResumen>[];
 
   for (final fila in eventos as List) {
-    final activo = fila['activo'] as bool? ?? false;
     final inscripciones = (fila['inscripciones'] as List?) ?? const [];
-    final pendientes = inscripciones
-        .where((i) => (i['asistencia_confirmada'] as bool? ?? false) == false)
-        .length;
-    final fecha = DateTime.parse(fila['fecha'] as String);
-    final yaOcurrio = fecha.isBefore(hoySinHora);
-
-    final resumen = EventoResumen(
-      id: fila['id'] as String,
-      nombre: fila['nombre'] as String,
-      fecha: fecha,
-      inscriptos: inscripciones.length,
-      cuposMaximos: fila['cupos_maximos'] as int,
-      pendientes: pendientes,
-    );
-
-    if (activo) eventosActivos += 1;
     totalInscriptos += inscripciones.length;
 
-    if (yaOcurrio) {
-      // Solo los eventos ya realizados tienen "pendientes" con sentido.
-      pendientesValidacion += pendientes;
-      if (pendientes > 0) porRevisar.add(resumen);
-    } else if (activo) {
-      proximos.add(resumen);
+    if ((fila['estado'] as String?) == 'vigente') {
+      vigentes.add(EventoResumen(
+        id: fila['id'] as String,
+        nombre: fila['nombre'] as String,
+        fecha: DateTime.parse(fila['fecha'] as String),
+        horaInicio: (fila['hora_inicio'] as String).substring(0, 5),
+        inscriptos: inscripciones.length,
+        cuposMaximos: fila['cupos_maximos'] as int,
+      ));
     }
   }
 
-  proximos.sort((a, b) => a.fecha.compareTo(b.fecha));
-  porRevisar.sort((a, b) => b.fecha.compareTo(a.fecha)); // más reciente primero
+  vigentes.sort((a, b) => a.fecha.compareTo(b.fecha));
 
   return MetricasAdmin(
     nombreCompleto: perfil['nombre_completo'] as String,
-    eventosActivos: eventosActivos,
+    eventosVigentes: vigentes.length,
     totalInscriptos: totalInscriptos,
-    pendientesValidacion: pendientesValidacion,
     validadoresActivos: (validadores as List).length,
-    proximosEventos: proximos.take(5).toList(),
-    eventosPorRevisar: porRevisar.take(5).toList(),
+    eventosVigentesLista: vigentes,
   );
 });
 

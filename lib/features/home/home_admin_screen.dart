@@ -364,7 +364,7 @@ class _TarjetaEvento extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () =>
-            context.push(AppRoutes.sesionAsistenciaPath(evento.id)),
+            context.push(AppRoutes.gestionAsistenciaPath(evento.id)),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(

@@ -22,9 +22,7 @@ import '../features/admin/alta_validador_screen.dart';
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
 class AppRoutes {
   AppRoutes._();
-static const String sesionAsistencia = '/admin/eventos/:id/sesion';
 
-static String sesionAsistenciaPath(String id) => '/admin/eventos/$id/sesion';
   // --- Públicas ---
   static const String login = '/login';
   static const String recuperarPassword = '/recuperar-password';
@@ -258,18 +256,13 @@ final GoRouter appRouter = GoRouter(
     ),
 
     // ---------------- Validador temporal ----------------
-   GoRoute(
-  path: AppRoutes.homeValidador,
-  builder: (context, state) => const PanelAsistenciaScreen(),
-),
-GoRoute(
-  path: AppRoutes.sesionAsistencia,
-  builder: (context, state) => PanelAsistenciaScreen(
-    eventoId: state.pathParameters['id']!,
-  ),
-),
+    GoRoute(
+      path: AppRoutes.homeValidador,
+      builder: (context, state) => const PanelAsistenciaScreen(),
+    ),
   ],
 );
+
 
 /// Pantalla temporal mientras no existen las screens reales.
 class _PlaceholderScreen extends StatelessWidget {

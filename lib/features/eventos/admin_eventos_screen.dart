@@ -294,28 +294,14 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => context
-                        .push(AppRoutes.gestionAsistenciaPath(evento.id)),
-                    icon: const Icon(Icons.fact_check_outlined, size: 18),
-                    label: const Text('Corregir'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: evento.vigente
-                        ? () => context
-                            .push(AppRoutes.sesionAsistenciaPath(evento.id))
-                        : null,
-                    icon: const Icon(Icons.qr_code_2, size: 18),
-                    label: const Text('Sesión'),
-                  ),
-                ),
-              ],
+             SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => context
+                    .push(AppRoutes.gestionAsistenciaPath(evento.id)),
+                icon: const Icon(Icons.fact_check_outlined, size: 18),
+                label: const Text('Asistencia'),
+              ),
             ),
           ],
         ),

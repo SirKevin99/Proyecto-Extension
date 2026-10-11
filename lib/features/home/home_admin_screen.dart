@@ -128,10 +128,10 @@ class HomeAdminScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 10),
         _AccesoRapido(
-          icono: Icons.qr_code_scanner_outlined,
-          titulo: 'Alta de validador',
-          subtitulo: 'Acceso temporal para marcar asistencia',
-          onTap: () => context.push(AppRoutes.altaValidador),
+          icono: Icons.verified_user_outlined,
+          titulo: 'Validadores',
+          subtitulo: 'Activos, evento asignado y deshabilitar',
+          onTap: () => context.push(AppRoutes.validadores),
         ),
         const SizedBox(height: 10),
         _AccesoRapido(

@@ -27,7 +27,9 @@ function respuesta(body: unknown, status = 200) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  if (req.method !== "POST") return respuesta({ error: "Método no permitido" }, 405);
+  if (req.method !== "POST") {
+    return respuesta({ error: "Método no permitido" }, 405);
+  }
 
   const url = Deno.env.get("SUPABASE_URL")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -74,11 +76,17 @@ Deno.serve(async (req) => {
     .select("rol, activo, vigente_hasta")
     .eq("id", user.id)
     .maybeSingle();
-  if (errPerfil || !perfil) return respuesta({ error: "Usuario no encontrado" }, 403);
-  if (perfil.rol !== "validador") {
-    return respuesta({ error: "Solo un validador puede habilitar la asistencia" }, 403);
+  if (errPerfil || !perfil) {
+    return respuesta({ error: "Usuario no encontrado" }, 403);
   }
-  if (!perfil.activo) return respuesta({ error: "Validador deshabilitado" }, 403);
+  if (perfil.rol !== "validador") {
+    return respuesta({
+      error: "Solo un validador puede habilitar la asistencia",
+    }, 403);
+  }
+  if (!perfil.activo) {
+    return respuesta({ error: "Validador deshabilitado" }, 403);
+  }
   if (perfil.vigente_hasta && new Date(perfil.vigente_hasta) < new Date()) {
     return respuesta({ error: "Tu acceso como validador venció" }, 403);
   }
@@ -87,7 +95,11 @@ Deno.serve(async (req) => {
   //    Cliente aislado: no persiste sesión y no toca la del llamador.
   //    Si el usuario está baneado, Auth también rechaza el login.
   const verificador = createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
   });
   const { error: errPass } = await verificador.auth.signInWithPassword({
     email: user.email,
@@ -107,8 +119,11 @@ Deno.serve(async (req) => {
   // La RPC puede devolver el timestamp directo o una fila/objeto.
   let modoHasta: string | null = null;
   if (typeof data === "string") modoHasta = data;
-  else if (Array.isArray(data) && data[0]) modoHasta = data[0].modo_hasta ?? null;
-  else if (data && typeof data === "object") modoHasta = (data as any).modo_hasta ?? null;
+  else if (Array.isArray(data) && data[0]) {
+    modoHasta = data[0].modo_hasta ?? null;
+  } else if (data && typeof data === "object") {
+    modoHasta = (data as any).modo_hasta ?? null;
+  }
 
   return respuesta({ exito: true, modo_hasta: modoHasta });
 });

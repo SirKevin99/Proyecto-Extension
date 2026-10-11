@@ -42,7 +42,7 @@ class EventoResumen {
   final DateTime fecha;
   final String horaInicio;
   final int inscriptos;
-  final int cuposMaximos;
+  final int? cuposMaximos;
 
   const EventoResumen({
     required this.id,
@@ -110,7 +110,7 @@ final metricasAdminProvider =
         fecha: DateTime.parse(fila['fecha'] as String),
         horaInicio: (fila['hora_inicio'] as String).substring(0, 5),
         inscriptos: inscripciones.length,
-        cuposMaximos: fila['cupos_maximos'] as int,
+        cuposMaximos: fila['cupos_maximos'] as int?,
       ));
     }
   }

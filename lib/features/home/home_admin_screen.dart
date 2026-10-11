@@ -356,9 +356,10 @@ class _TarjetaEvento extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formatoFecha = DateFormat('dd MMM yyyy', 'es');
-    final ocupacion = evento.cuposMaximos == 0
+    final max = evento.cuposMaximos;
+    final ocupacion = (max == null || max == 0)
         ? 0.0
-        : (evento.inscriptos / evento.cuposMaximos).clamp(0, 1).toDouble();
+        : (evento.inscriptos / max).clamp(0, 1).toDouble();
 
     return Card(
       child: InkWell(
@@ -412,7 +413,7 @@ class _TarjetaEvento extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Text('${evento.inscriptos}/${evento.cuposMaximos}',
+                  Text('${evento.inscriptos}/${evento.cuposMaximos ?? '∞'}',
                       style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),

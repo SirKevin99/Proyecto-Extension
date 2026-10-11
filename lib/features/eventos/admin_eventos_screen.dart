@@ -135,7 +135,7 @@ class _AdminEventosScreenState extends ConsumerState<AdminEventosScreen> {
   }
 }
 
-enum _Accion { finalizar, cancelar }
+enum _Accion { editar, finalizar, cancelar }
 
 class _TarjetaEventoAdmin extends ConsumerWidget {
   final EventoAdmin evento;
@@ -205,9 +205,11 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final formatoFecha = DateFormat('dd MMM yyyy', 'es');
-    final ocupacion = evento.cuposMaximos == 0
+    final max = evento.cuposMaximos;
+    final ocupacion = (max == null || max == 0)
         ? 0.0
-        : (evento.inscriptos / evento.cuposMaximos).clamp(0, 1).toDouble();
+        : (evento.inscriptos / max).clamp(0, 1).toDouble();
+        
 
     return Card(
       child: Padding(
@@ -231,8 +233,18 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
                   PopupMenuButton<_Accion>(
                     tooltip: 'Más acciones',
                     padding: EdgeInsets.zero,
-                    onSelected: (a) => _confirmarYEjecutar(context, ref, a),
+                    onSelected: (a) {
+                      if (a == _Accion.editar) {
+                        context.push(AppRoutes.editarEventoPath(evento.id));
+                      } else {
+                        _confirmarYEjecutar(context, ref, a);
+                      }
+                    },
                     itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: _Accion.editar,
+                        child: Text('Editar evento'),
+                      ),
                       PopupMenuItem(
                         value: _Accion.finalizar,
                         child: Text('Finalizar evento'),
@@ -289,7 +301,7 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text('${evento.inscriptos}/${evento.cuposMaximos}',
+                Text('${evento.inscriptos}/${evento.cuposMaximos ?? '∞'}',
                     style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),

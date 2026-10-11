@@ -101,9 +101,7 @@ class DetalleEventoScreen extends ConsumerWidget {
               _FilaInfo(
                 icono: Icons.schedule_outlined,
                 titulo: 'Horario',
-                valor: evento.horaFin != null
-                    ? '${evento.horaInicio} - ${evento.horaFin}'
-                    : 'Desde las ${evento.horaInicio}',
+                valor: '${evento.horaInicio} - ${evento.horaFin}',
               ),
               _FilaInfo(
                 icono: Icons.location_on_outlined,
@@ -123,9 +121,11 @@ class DetalleEventoScreen extends ConsumerWidget {
               _FilaInfo(
                 icono: Icons.event_seat_outlined,
                 titulo: 'Cupos',
-                valor: evento.cuposAgotados
-                    ? 'Sin cupos disponibles'
-                    : '${evento.cuposDisponibles} de ${evento.cuposMaximos} disponibles',
+                valor: evento.cuposIlimitados
+                    ? 'Cupos ilimitados'
+                    : evento.cuposAgotados
+                        ? 'Sin cupos disponibles'
+                        : '${evento.cuposDisponibles} de ${evento.cuposMaximos} disponibles',
                 colorValor:
                     evento.cuposAgotados ? UniNorteColors.error : null,
               ),

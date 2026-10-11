@@ -29,12 +29,13 @@ class Evento {
   final String? expositor;
   final DateTime fecha;
   final String horaInicio;
-  final String? horaFin;
+  final String horaFin;
   final String ubicacion;
   final String modalidad;
   final int horasOtorgadas;
-  final int cuposMaximos;
-  final int cuposDisponibles;
+  final int? cuposMaximos; // null = ilimitado
+  final int? cuposDisponibles; // null = ilimitado
+  final int toleranciaEntradaMin;
   final String creadoPor;
   final bool activo;
 
@@ -46,17 +47,21 @@ class Evento {
     this.expositor,
     required this.fecha,
     required this.horaInicio,
-    this.horaFin,
+    required this.horaFin,
     required this.ubicacion,
     required this.modalidad,
     required this.horasOtorgadas,
     required this.cuposMaximos,
     required this.cuposDisponibles,
+    required this.toleranciaEntradaMin,
     required this.creadoPor,
     required this.activo,
   });
 
-  bool get cuposAgotados => cuposDisponibles <= 0;
+  bool get cuposIlimitados => cuposMaximos == null;
+
+  bool get cuposAgotados =>
+      !cuposIlimitados && (cuposDisponibles ?? 0) <= 0;
 
   factory Evento.fromMap(Map<String, dynamic> map) {
     return Evento(
@@ -67,12 +72,13 @@ class Evento {
       expositor: map['expositor'] as String?,
       fecha: DateTime.parse(map['fecha'] as String),
       horaInicio: (map['hora_inicio'] as String).substring(0, 5),
-      horaFin: (map['hora_fin'] as String?)?.substring(0, 5),
+      horaFin: (map['hora_fin'] as String).substring(0, 5),
       ubicacion: map['ubicacion'] as String,
       modalidad: map['modalidad'] as String? ?? 'Presencial Obligatorio',
       horasOtorgadas: map['horas_otorgadas'] as int,
-      cuposMaximos: map['cupos_maximos'] as int,
-      cuposDisponibles: map['cupos_disponibles'] as int,
+      cuposMaximos: map['cupos_maximos'] as int?,
+      cuposDisponibles: map['cupos_disponibles'] as int?,
+      toleranciaEntradaMin: map['tolerancia_entrada_min'] as int? ?? 15,
       creadoPor: map['creado_por'] as String,
       activo: map['activo'] as bool? ?? true,
     );
@@ -220,15 +226,22 @@ final inscripcionNotifierProvider =
 );
 
 // ---------------------------------------------------------------
-// Acción del admin: crear evento
+// Admin: crear y editar evento
 // ---------------------------------------------------------------
+
+/// Un evento puntual (usado por la pantalla de edición).
+final eventoPorIdProvider =
+    FutureProvider.autoDispose.family<Evento, String>((ref, id) async {
+  final fila = await supabase.from('eventos').select().eq('id', id).single();
+  return Evento.fromMap(fila);
+});
 
 class CrearEventoNotifier extends StateNotifier<AsyncValue<void>> {
   CrearEventoNotifier() : super(const AsyncValue.data(null));
 
-  /// `cupos_disponibles` arranca igual a `cupos_maximos`.
-  /// `creado_por` debe ser auth.uid(): la policy
-  /// `eventos_insert_admin` rechaza cualquier otro valor.
+  /// `cuposMaximos` nulo = cupo ilimitado (`cupos_disponibles` también nulo).
+  /// `creado_por` debe ser auth.uid(): la policy `eventos_insert_admin`
+  /// rechaza cualquier otro valor.
   Future<bool> crear({
     required String nombre,
     String? descripcion,
@@ -236,11 +249,12 @@ class CrearEventoNotifier extends StateNotifier<AsyncValue<void>> {
     String? expositor,
     required String fecha, // yyyy-MM-dd
     required String horaInicio, // HH:mm:ss
-    String? horaFin,
+    required String horaFin,
     required String ubicacion,
     required String modalidad,
     required int horasOtorgadas,
-    required int cuposMaximos,
+    int? cuposMaximos,
+    required int toleranciaEntradaMin,
   }) async {
     state = const AsyncValue.loading();
     try {
@@ -257,7 +271,49 @@ class CrearEventoNotifier extends StateNotifier<AsyncValue<void>> {
         'horas_otorgadas': horasOtorgadas,
         'cupos_maximos': cuposMaximos,
         'cupos_disponibles': cuposMaximos,
+        'tolerancia_entrada_min': toleranciaEntradaMin,
         'creado_por': supabase.auth.currentUser!.id,
+      });
+      state = const AsyncValue.data(null);
+      return true;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return false;
+    }
+  }
+
+  /// La edición la valida y ejecuta el servidor (RPC `editar_evento`).
+  Future<bool> editar({
+    required String eventoId,
+    required String nombre,
+    String? descripcion,
+    required String categoria,
+    String? expositor,
+    required String fecha,
+    required String horaInicio,
+    required String horaFin,
+    required String ubicacion,
+    required String modalidad,
+    required int horasOtorgadas,
+    int? cuposMaximos,
+    required int toleranciaEntradaMin,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      await supabase.rpc('editar_evento', params: {
+        'p_evento_id': eventoId,
+        'p_nombre': nombre,
+        'p_descripcion': descripcion,
+        'p_categoria': categoria,
+        'p_expositor': expositor,
+        'p_fecha': fecha,
+        'p_hora_inicio': horaInicio,
+        'p_hora_fin': horaFin,
+        'p_ubicacion': ubicacion,
+        'p_modalidad': modalidad,
+        'p_horas_otorgadas': horasOtorgadas,
+        'p_cupos_maximos': cuposMaximos,
+        'p_tolerancia_min': toleranciaEntradaMin,
       });
       state = const AsyncValue.data(null);
       return true;

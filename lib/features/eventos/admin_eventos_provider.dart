@@ -21,7 +21,7 @@ class EventoAdmin {
   final String horaInicio;
   final String ubicacion;
   final EstadoEvento estado;
-  final int cuposMaximos;
+  final int? cuposMaximos; // null = ilimitado
   final int inscriptos;
 
   const EventoAdmin({
@@ -60,7 +60,7 @@ final adminEventosProvider =
       horaInicio: (fila['hora_inicio'] as String).substring(0, 5),
       ubicacion: fila['ubicacion'] as String,
       estado: EstadoEvento.desdeTexto(fila['estado'] as String?),
-      cuposMaximos: fila['cupos_maximos'] as int,
+      cuposMaximos: fila['cupos_maximos'] as int?,
       inscriptos: inscripciones.length,
     );
   }).toList();

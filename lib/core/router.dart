@@ -17,6 +17,7 @@ import '../features/eventos/admin_eventos_screen.dart';
 
 import '../features/admin/alta_usuario_screen.dart';
 import '../features/admin/alta_validador_screen.dart';
+import '../features/admin/lista_validadores_screen.dart';
 
 /// Rutas nombradas de la app. Las rutas de cada rol viven bajo un
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
@@ -44,6 +45,8 @@ class AppRoutes {
   static const String gestionAsistencia = '/admin/eventos/:id/asistencia';
   static const String altaUsuario = '/admin/usuarios/nuevo';
   static const String altaValidador = '/admin/validadores/nuevo';
+
+  static const String validadores = '/admin/validadores';
 
   // --- Validador temporal (prefijo /validador) ---
   static const String homeValidador = '/validador';
@@ -253,6 +256,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.altaValidador,
       builder: (context, state) => const AltaValidadorScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.validadores,
+      builder: (context, state) => const ListaValidadoresScreen(),
     ),
 
     // ---------------- Validador temporal ----------------

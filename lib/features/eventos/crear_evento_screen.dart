@@ -2,15 +2,51 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme.dart';
 import '../home/home_provider.dart';
+import 'admin_eventos_provider.dart';
 import 'eventos_provider.dart';
 
-import 'admin_eventos_provider.dart';
+/// Carga el evento y abre el formulario en modo edición.
+class EditarEventoScreen extends ConsumerWidget {
+  final String eventoId;
+  const EditarEventoScreen({super.key, required this.eventoId});
 
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(eventoPorIdProvider(eventoId));
+    return async.when(
+      loading: () => Scaffold(
+        appBar: AppBar(title: const Text('Editar evento')),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, _) => Scaffold(
+        appBar: AppBar(title: const Text('Editar evento')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('No se pudo cargar el evento'),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () => ref.invalidate(eventoPorIdProvider(eventoId)),
+                child: const Text('Reintentar'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (evento) => CrearEventoScreen(evento: evento),
+    );
+  }
+}
+
+/// Formulario de evento. Con [evento] nulo crea; con valor, edita.
 class CrearEventoScreen extends ConsumerStatefulWidget {
-  const CrearEventoScreen({super.key});
+  final Evento? evento;
+  const CrearEventoScreen({super.key, this.evento});
 
   @override
   ConsumerState<CrearEventoScreen> createState() => _CrearEventoScreenState();
@@ -25,16 +61,43 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
   final _ubicacionController = TextEditingController();
   final _horasController = TextEditingController();
   final _cuposController = TextEditingController();
+  final _toleranciaController = TextEditingController(text: '15');
 
   String? _categoria;
   String _modalidad = modalidadesEvento.first;
   DateTime? _fecha;
   TimeOfDay? _horaInicio;
   TimeOfDay? _horaFin;
+  bool _cupoIlimitado = false;
 
-  /// Se activa al primer intento de guardar, para mostrar los errores
-  /// de los campos que no son TextFormField (categoría, fecha, horas).
   bool _intentoEnviar = false;
+
+  bool get _editando => widget.evento != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.evento;
+    if (e == null) return;
+    _nombreController.text = e.nombre;
+    _descripcionController.text = e.descripcion ?? '';
+    _expositorController.text = e.expositor ?? '';
+    _ubicacionController.text = e.ubicacion;
+    _horasController.text = '${e.horasOtorgadas}';
+    _categoria = e.categoria;
+    _modalidad = e.modalidad;
+    _fecha = e.fecha;
+    _horaInicio = _parseHora(e.horaInicio);
+    _horaFin = _parseHora(e.horaFin);
+    _cupoIlimitado = e.cuposIlimitados;
+    if (!e.cuposIlimitados) _cuposController.text = '${e.cuposMaximos}';
+    _toleranciaController.text = '${e.toleranciaEntradaMin}';
+  }
+
+  TimeOfDay _parseHora(String hhmm) {
+    final p = hhmm.split(':');
+    return TimeOfDay(hour: int.parse(p[0]), minute: int.parse(p[1]));
+  }
 
   @override
   void dispose() {
@@ -44,6 +107,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
     _ubicacionController.dispose();
     _horasController.dispose();
     _cuposController.dispose();
+    _toleranciaController.dispose();
     super.dispose();
   }
 
@@ -64,10 +128,16 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
 
   Future<void> _elegirFecha() async {
     final hoy = DateTime.now();
+    final hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);
+    // Al editar, la fecha actual puede ser anterior a hoy: el picker
+    // exige que initialDate >= firstDate.
+    final primera = (_fecha != null && _fecha!.isBefore(hoySinHora))
+        ? _fecha!
+        : hoySinHora;
     final elegida = await showDatePicker(
       context: context,
-      initialDate: _fecha ?? hoy,
-      firstDate: DateTime(hoy.year, hoy.month, hoy.day),
+      initialDate: _fecha ?? hoySinHora,
+      firstDate: primera,
       lastDate: DateTime(hoy.year + 2),
     );
     if (elegida != null) setState(() => _fecha = elegida);
@@ -94,10 +164,9 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
   }
 
   String? get _errorHoraFin {
-    if (_horaInicio != null &&
-        _horaFin != null &&
-        _minutos(_horaFin!) <= _minutos(_horaInicio!)) {
-      return 'La hora de fin debe ser posterior al inicio';
+    if (_horaFin == null) return _intentoEnviar ? 'Obligatoria' : null;
+    if (_horaInicio != null && _minutos(_horaFin!) <= _minutos(_horaInicio!)) {
+      return 'Debe ser posterior al inicio';
     }
     return null;
   }
@@ -106,6 +175,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
       _categoria != null &&
       _fecha != null &&
       _horaInicio != null &&
+      _horaFin != null &&
       _errorHoraFin == null;
 
   String? _vacioSiNulo(String texto) {
@@ -122,30 +192,57 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
 
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
+    final notifier = ref.read(crearEventoNotifierProvider.notifier);
 
-    final exito = await ref.read(crearEventoNotifierProvider.notifier).crear(
-          nombre: _nombreController.text.trim(),
-          descripcion: _vacioSiNulo(_descripcionController.text),
-          categoria: _categoria!,
-          expositor: _vacioSiNulo(_expositorController.text),
-          fecha: _fmtFechaDb(_fecha!),
-          horaInicio: _fmtHoraDb(_horaInicio!),
-          horaFin: _horaFin == null ? null : _fmtHoraDb(_horaFin!),
-          ubicacion: _ubicacionController.text.trim(),
-          modalidad: _modalidad,
-          horasOtorgadas: int.parse(_horasController.text.trim()),
-          cuposMaximos: int.parse(_cuposController.text.trim()),
-        );
+    final cupos = _cupoIlimitado ? null : int.parse(_cuposController.text.trim());
+    final tolerancia = int.parse(_toleranciaController.text.trim());
+
+    final exito = _editando
+        ? await notifier.editar(
+            eventoId: widget.evento!.id,
+            nombre: _nombreController.text.trim(),
+            descripcion: _vacioSiNulo(_descripcionController.text),
+            categoria: _categoria!,
+            expositor: _vacioSiNulo(_expositorController.text),
+            fecha: _fmtFechaDb(_fecha!),
+            horaInicio: _fmtHoraDb(_horaInicio!),
+            horaFin: _fmtHoraDb(_horaFin!),
+            ubicacion: _ubicacionController.text.trim(),
+            modalidad: _modalidad,
+            horasOtorgadas: int.parse(_horasController.text.trim()),
+            cuposMaximos: cupos,
+            toleranciaEntradaMin: tolerancia,
+          )
+        : await notifier.crear(
+            nombre: _nombreController.text.trim(),
+            descripcion: _vacioSiNulo(_descripcionController.text),
+            categoria: _categoria!,
+            expositor: _vacioSiNulo(_expositorController.text),
+            fecha: _fmtFechaDb(_fecha!),
+            horaInicio: _fmtHoraDb(_horaInicio!),
+            horaFin: _fmtHoraDb(_horaFin!),
+            ubicacion: _ubicacionController.text.trim(),
+            modalidad: _modalidad,
+            horasOtorgadas: int.parse(_horasController.text.trim()),
+            cuposMaximos: cupos,
+            toleranciaEntradaMin: tolerancia,
+          );
 
     if (!exito) return; // el ref.listen de build muestra el error
 
     ref.invalidate(metricasAdminProvider);
     ref.invalidate(catalogoEventosProvider);
     ref.invalidate(adminEventosProvider);
+    if (_editando) {
+      ref.invalidate(eventoPorIdProvider(widget.evento!.id));
+      ref.invalidate(detalleEventoProvider(widget.evento!.id));
+    }
 
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Evento creado correctamente'),
+      SnackBar(
+        content: Text(_editando
+            ? 'Evento actualizado correctamente'
+            : 'Evento creado correctamente'),
         backgroundColor: UniNorteColors.exito,
         behavior: SnackBarBehavior.floating,
       ),
@@ -154,11 +251,17 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
   }
 
   String _mensajeError(Object error) {
+    // Los mensajes de la RPC de edición ya vienen listos para el usuario.
+    if (error is PostgrestException && error.code == 'P0001') {
+      return error.message;
+    }
     final texto = error.toString().toLowerCase();
     if (texto.contains('42501') || texto.contains('row-level security')) {
-      return 'No tenés permiso para crear eventos.';
+      return 'No tenés permiso para esta acción.';
     }
-    return 'No se pudo crear el evento. Intentá nuevamente.';
+    return _editando
+        ? 'No se pudo guardar el evento. Intentá nuevamente.'
+        : 'No se pudo crear el evento. Intentá nuevamente.';
   }
 
   @override
@@ -182,7 +285,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
     final formatoFecha = DateFormat('EEEE dd MMMM yyyy', 'es');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nuevo evento')),
+      appBar: AppBar(title: Text(_editando ? 'Editar evento' : 'Nuevo evento')),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -236,9 +339,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
               _CampoSelector(
                 icono: Icons.calendar_today_outlined,
                 etiqueta: 'Fecha',
-                valor: _fecha == null
-                    ? null
-                    : formatoFecha.format(_fecha!),
+                valor: _fecha == null ? null : formatoFecha.format(_fecha!),
                 error: _intentoEnviar && _fecha == null
                     ? 'Elegí la fecha'
                     : null,
@@ -266,13 +367,30 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
                   Expanded(
                     child: _CampoSelector(
                       icono: Icons.schedule_outlined,
-                      etiqueta: 'Hora de fin (opc.)',
+                      etiqueta: 'Hora de fin',
                       valor: _horaFin == null ? null : _fmtHoraUi(_horaFin!),
                       error: _errorHoraFin,
                       onTap: () => _elegirHora(esInicio: false),
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _toleranciaController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Tolerancia de entrada (minutos)',
+                  helperText:
+                      'Tiempo después del inicio en que aún se puede marcar la entrada',
+                  prefixIcon: Icon(Icons.hourglass_bottom_outlined),
+                ),
+                validator: (v) {
+                  final n = int.tryParse(v?.trim() ?? '');
+                  if (n == null || n < 0 || n > 120) return 'Entre 0 y 120';
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 
@@ -308,46 +426,44 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
               ),
               const SizedBox(height: 16),
 
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _horasController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Horas otorgadas',
-                        prefixIcon: Icon(Icons.timer_outlined),
-                      ),
-                      validator: (v) {
-                        final n = int.tryParse(v?.trim() ?? '');
-                        if (n == null || n < 1 || n > 120) {
-                          return 'Entre 1 y 120';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _cuposController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Cupos',
-                        prefixIcon: Icon(Icons.event_seat_outlined),
-                      ),
-                      validator: (v) {
-                        final n = int.tryParse(v?.trim() ?? '');
-                        if (n == null || n < 1 || n > 5000) {
-                          return 'Entre 1 y 5000';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                ],
+              TextFormField(
+                controller: _horasController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Horas otorgadas',
+                  prefixIcon: Icon(Icons.timer_outlined),
+                ),
+                validator: (v) {
+                  final n = int.tryParse(v?.trim() ?? '');
+                  if (n == null || n < 1 || n > 120) return 'Entre 1 y 120';
+                  return null;
+                },
               ),
+              const SizedBox(height: 8),
+
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Cupo ilimitado'),
+                value: _cupoIlimitado,
+                activeThumbColor: UniNorteColors.azulMarino,
+                onChanged: (v) => setState(() => _cupoIlimitado = v),
+              ),
+              if (!_cupoIlimitado)
+                TextFormField(
+                  controller: _cuposController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Cupos',
+                    prefixIcon: Icon(Icons.event_seat_outlined),
+                  ),
+                  validator: (v) {
+                    final n = int.tryParse(v?.trim() ?? '');
+                    if (n == null || n < 1 || n > 5000) {
+                      return 'Entre 1 y 5000';
+                    }
+                    return null;
+                  },
+                ),
               const SizedBox(height: 16),
 
               TextFormField(
@@ -372,7 +488,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
                           color: UniNorteColors.azulMarino,
                         ),
                       )
-                    : const Text('Crear evento'),
+                    : Text(_editando ? 'Guardar cambios' : 'Crear evento'),
               ),
             ],
           ),

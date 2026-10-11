@@ -47,6 +47,7 @@ class AppRoutes {
   static const String altaValidador = '/admin/validadores/nuevo';
 
   static const String validadores = '/admin/validadores';
+   static const String editarEvento = '/admin/eventos/:id/editar';
 
   // --- Validador temporal (prefijo /validador) ---
   static const String homeValidador = '/validador';
@@ -54,8 +55,8 @@ class AppRoutes {
   // Helpers para evitar replaceFirst(':id', ...) repetido en las pantallas.
   static String detalleEventoPath(String id) => '/eventos/$id';
   static String marcarAsistenciaPath(String id) => '/eventos/$id/marcar';
-  static String gestionAsistenciaPath(String id) =>
-      '/admin/eventos/$id/asistencia';
+  static String gestionAsistenciaPath(String id) => '/admin/eventos/$id/asistencia';
+  static String editarEventoPath(String id) => '/admin/eventos/$id/editar';
 }
 
 /// Roles válidos, según el CHECK constraint de la tabla `usuarios`.
@@ -242,6 +243,12 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.crearEvento,
       builder: (context, state) => const CrearEventoScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.editarEvento,
+      builder: (context, state) => EditarEventoScreen(
+        eventoId: state.pathParameters['id']!,
+      ),
     ),
     GoRoute(
       path: AppRoutes.gestionAsistencia,

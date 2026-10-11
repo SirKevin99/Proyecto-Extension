@@ -268,9 +268,11 @@ class _TarjetaEvento extends StatelessWidget {
                         const SizedBox(width: 8),
                         _BadgeInfo(
                           icono: Icons.people_outline,
-                          texto: evento.cuposAgotados
-                              ? 'Sin cupos'
-                              : '${evento.cuposDisponibles} cupos',
+                         texto: evento.cuposIlimitados
+                              ? 'Cupo libre'
+                              : evento.cuposAgotados
+                                  ? 'Sin cupos'
+                                  : '${evento.cuposDisponibles} cupos',
                           color: evento.cuposAgotados
                               ? UniNorteColors.error
                               : null,

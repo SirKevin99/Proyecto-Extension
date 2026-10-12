@@ -55,6 +55,37 @@ class PinGenerado {
   const PinGenerado({required this.codigo, required this.venceEn});
 }
 
+/// Marcajes del alumno autenticado en un evento.
+class MiMarcaje {
+  final DateTime? entradaEn;
+  final DateTime? salidaEn;
+
+  const MiMarcaje({this.entradaEn, this.salidaEn});
+
+  bool get completo => entradaEn != null && salidaEn != null;
+}
+
+/// Entrada y salida registradas por el alumno en [eventoId].
+/// Lee su propia inscripción (RLS), sin pasar por la sesión del validador.
+final miMarcajeProvider = FutureProvider.autoDispose.family<MiMarcaje, String>((
+  ref,
+  eventoId,
+) async {
+  final fila = await supabase
+      .from('inscripciones')
+      .select('entrada_en, salida_en')
+      .eq('evento_id', eventoId)
+      .eq('usuario_id', supabase.auth.currentUser!.id)
+      .maybeSingle();
+
+  DateTime? leer(String campo) {
+    final valor = fila?[campo] as String?;
+    return valor == null ? null : DateTime.parse(valor).toLocal();
+  }
+
+  return MiMarcaje(entradaEn: leer('entrada_en'), salidaEn: leer('salida_en'));
+});
+
 /// Evento que gestiona el panel. Con [eventoId] nulo (validador) se
 /// resuelve desde su propio perfil; con valor se usa ese evento.
 final eventoPanelProvider = FutureProvider.autoDispose

@@ -54,8 +54,11 @@ class _AdminEventosScreenState extends ConsumerState<AdminEventosScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline,
-                  color: UniNorteColors.error, size: 48),
+              const Icon(
+                Icons.error_outline,
+                color: UniNorteColors.error,
+                size: 48,
+              ),
               const SizedBox(height: 12),
               const Text('No se pudieron cargar los eventos'),
               const SizedBox(height: 12),
@@ -142,7 +145,10 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
   const _TarjetaEventoAdmin({required this.evento});
 
   Future<void> _confirmarYEjecutar(
-      BuildContext context, WidgetRef ref, _Accion accion) async {
+    BuildContext context,
+    WidgetRef ref,
+    _Accion accion,
+  ) async {
     final esCancelar = accion == _Accion.cancelar;
 
     final confirmado = await showDialog<bool>(
@@ -152,11 +158,11 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
         content: Text(
           esCancelar
               ? '"${evento.nombre}" se marcará como cancelado. Se cerrará la '
-                  'sesión de asistencia, se deshabilitará su validador y no '
-                  'se acreditarán horas. Esta acción no se puede deshacer.'
+                    'sesión de asistencia, se deshabilitará su validador y no '
+                    'se acreditarán horas. Esta acción no se puede deshacer.'
               : '"${evento.nombre}" se marcará como finalizado. Se cerrará la '
-                  'sesión de asistencia y se deshabilitará su validador. '
-                  'Esta acción no se puede deshacer.',
+                    'sesión de asistencia y se deshabilitará su validador. '
+                    'Esta acción no se puede deshacer.',
         ),
         actions: [
           TextButton(
@@ -166,8 +172,7 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: esCancelar
-                ? FilledButton.styleFrom(
-                    backgroundColor: UniNorteColors.error)
+                ? FilledButton.styleFrom(backgroundColor: UniNorteColors.error)
                 : null,
             child: Text(esCancelar ? 'Cancelar evento' : 'Finalizar'),
           ),
@@ -185,11 +190,13 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
       }
       ref.invalidate(adminEventosProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(esCancelar
-              ? 'Evento cancelado'
-              : 'Evento finalizado'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              esCancelar ? 'Evento cancelado' : 'Evento finalizado',
+            ),
+          ),
+        );
       }
     } catch (e) {
       final mensaje = e is PostgrestException
@@ -209,7 +216,6 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
     final ocupacion = (max == null || max == 0)
         ? 0.0
         : (evento.inscriptos / max).clamp(0, 1).toDouble();
-        
 
     return Card(
       child: Padding(
@@ -260,8 +266,11 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.calendar_today_outlined,
-                    size: 14, color: UniNorteColors.textoSecundario),
+                const Icon(
+                  Icons.calendar_today_outlined,
+                  size: 14,
+                  color: UniNorteColors.textoSecundario,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   '${formatoFecha.format(evento.fecha)} · ${evento.horaInicio}',
@@ -272,8 +281,11 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.location_on_outlined,
-                    size: 14, color: UniNorteColors.textoSecundario),
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 14,
+                  color: UniNorteColors.textoSecundario,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -295,22 +307,35 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
                       value: ocupacion,
                       minHeight: 6,
                       backgroundColor: Colors.grey.shade200,
-                      valueColor:
-                          const AlwaysStoppedAnimation(UniNorteColors.dorado),
+                      valueColor: const AlwaysStoppedAnimation(
+                        UniNorteColors.dorado,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text('${evento.inscriptos}/${evento.cuposMaximos ?? '∞'}',
-                    style: Theme.of(context).textTheme.bodyMedium),
+                Text(
+                  '${evento.inscriptos}/${evento.cuposMaximos ?? '∞'}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ],
             ),
+            if (evento.estado == EstadoEvento.cancelado) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Cancelado: las asistencias se conservan como historial y '
+                'no acreditan horas.',
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: UniNorteColors.error),
+              ),
+            ],
+
             const SizedBox(height: 12),
-             SizedBox(
+            SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () => context
-                    .push(AppRoutes.gestionAsistenciaPath(evento.id)),
+                onPressed: () =>
+                    context.push(AppRoutes.gestionAsistenciaPath(evento.id)),
                 icon: const Icon(Icons.fact_check_outlined, size: 18),
                 label: const Text('Asistencia'),
               ),
@@ -330,10 +355,7 @@ class _EtiquetaEstado extends StatelessWidget {
   Widget build(BuildContext context) {
     final (texto, color) = switch (estado) {
       EstadoEvento.vigente => ('Vigente', Colors.green.shade700),
-      EstadoEvento.finalizado => (
-          'Finalizado',
-          UniNorteColors.textoSecundario
-        ),
+      EstadoEvento.finalizado => ('Finalizado', UniNorteColors.textoSecundario),
       EstadoEvento.cancelado => ('Cancelado', UniNorteColors.error),
     };
 
@@ -346,7 +368,10 @@ class _EtiquetaEstado extends StatelessWidget {
       child: Text(
         texto,
         style: TextStyle(
-            color: color, fontSize: 12, fontWeight: FontWeight.w600),
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

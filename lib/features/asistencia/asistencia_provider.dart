@@ -166,10 +166,16 @@ class AsistenciaService {
     required String modo,
     required String password,
   }) async {
-    await supabase.functions.invoke(
+    final respuesta = await supabase.functions.invoke(
       'activar-modo',
       body: {'sesion_id': sesionId, 'modo': modo, 'password': password},
     );
+
+    final data = respuesta.data;
+
+    if (data is! Map || data['exito'] != true) {
+      throw StateError('El servidor no confirmó la activación del registro.');
+    }
   }
 
   /// Token del QR (cambia cada 60 s): `sesion:modo:ventana:firma`.

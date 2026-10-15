@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import 'eventos_provider.dart';
 
 import 'package:go_router/go_router.dart';
+
 import '../../core/router.dart';
 
 class DetalleEventoScreen extends ConsumerWidget {
@@ -49,14 +50,16 @@ class DetalleEventoScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline,
-                color: UniNorteColors.error, size: 48),
+            const Icon(
+              Icons.error_outline,
+              color: UniNorteColors.error,
+              size: 48,
+            ),
             const SizedBox(height: 12),
             const Text('No se pudo cargar el evento'),
             const SizedBox(height: 12),
             OutlinedButton(
-              onPressed: () =>
-                  ref.invalidate(detalleEventoProvider(eventoId)),
+              onPressed: () => ref.invalidate(detalleEventoProvider(eventoId)),
               child: const Text('Reintentar'),
             ),
           ],
@@ -83,13 +86,17 @@ class DetalleEventoScreen extends ConsumerWidget {
             children: [
               Chip(label: Text(evento.categoria)),
               const SizedBox(height: 10),
-              Text(evento.nombre,
-                  style: Theme.of(context).textTheme.headlineMedium),
+              Text(
+                evento.nombre,
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
               if (evento.expositor != null &&
                   evento.expositor!.trim().isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text('Dictado por ${evento.expositor}',
-                    style: Theme.of(context).textTheme.bodyMedium),
+                Text(
+                  'Dictado por ${evento.expositor}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ],
               const SizedBox(height: 20),
 
@@ -124,20 +131,23 @@ class DetalleEventoScreen extends ConsumerWidget {
                 valor: evento.cuposIlimitados
                     ? 'Cupos ilimitados'
                     : evento.cuposAgotados
-                        ? 'Sin cupos disponibles'
-                        : '${evento.cuposDisponibles} de ${evento.cuposMaximos} disponibles',
-                colorValor:
-                    evento.cuposAgotados ? UniNorteColors.error : null,
+                    ? 'Sin cupos disponibles'
+                    : '${evento.cuposDisponibles} de ${evento.cuposMaximos} disponibles',
+                colorValor: evento.cuposAgotados ? UniNorteColors.error : null,
               ),
 
               if (evento.descripcion != null &&
                   evento.descripcion!.trim().isNotEmpty) ...[
                 const SizedBox(height: 20),
-                Text('Descripción',
-                    style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'Descripción',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 8),
-                Text(evento.descripcion!,
-                    style: Theme.of(context).textTheme.bodyLarge),
+                Text(
+                  evento.descripcion!,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
               ],
               const SizedBox(height: 20),
             ],
@@ -148,12 +158,7 @@ class DetalleEventoScreen extends ConsumerWidget {
           top: false,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-            child: _botonAccion(
-              context,
-              ref,
-              datos,
-              cargandoInscripcion,
-            ),
+            child: _botonAccion(context, ref, datos, cargandoInscripcion),
           ),
         ),
       ],
@@ -170,7 +175,7 @@ class DetalleEventoScreen extends ConsumerWidget {
       case EstadoInscripcion.asistenciaConfirmada:
         return _EstadoInscripcionBanner(
           icono: Icons.verified_outlined,
-          texto: 'Asistencia confirmada por el docente',
+          texto: 'Asistencia completa: entrada y salida registradas',
           color: UniNorteColors.exito,
         );
 
@@ -181,13 +186,13 @@ class DetalleEventoScreen extends ConsumerWidget {
           children: [
             const _EstadoInscripcionBanner(
               icono: Icons.hourglass_top_outlined,
-              texto: 'Inscripto. Falta registrar tu asistencia',
+              texto: 'Inscripto. Registrá tu entrada y tu salida',
               color: UniNorteColors.dorado,
             ),
             const SizedBox(height: 10),
             ElevatedButton.icon(
-              onPressed: () => context
-                  .push(AppRoutes.marcarAsistenciaPath(datos.evento.id)),
+              onPressed: () =>
+                  context.push(AppRoutes.marcarAsistenciaPath(datos.evento.id)),
               icon: const Icon(Icons.qr_code_scanner),
               label: const Text('Marcar asistencia'),
             ),
@@ -231,8 +236,7 @@ class DetalleEventoScreen extends ConsumerWidget {
         title: const Text('Confirmar inscripción'),
         content: const Text(
           '¿Confirmás tu inscripción a este evento? Recordá que la '
-          'asistencia debe ser validada presencialmente por el docente '
-          'para que las horas se acrediten.',
+          'asistencia (entrada y salida) debe registrarse presencialmente para que las horas se acrediten.',
         ),
         actions: [
           TextButton(

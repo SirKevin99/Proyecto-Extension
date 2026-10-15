@@ -25,8 +25,9 @@ class ProgresoEstudiante {
     required this.eventosPendientesAsistencia,
   });
 
-  double get porcentaje =>
-      horasRequeridas == 0 ? 0 : (horasCompletadas / horasRequeridas).clamp(0, 1);
+  double get porcentaje => horasRequeridas == 0
+      ? 0
+      : (horasCompletadas / horasRequeridas).clamp(0, 1);
 
   int get horasFaltantes =>
       (horasRequeridas - horasCompletadas).clamp(0, horasRequeridas);
@@ -70,8 +71,9 @@ class MetricasAdmin {
   });
 }
 
-final metricasAdminProvider =
-    FutureProvider.autoDispose<MetricasAdmin>((ref) async {
+final metricasAdminProvider = FutureProvider.autoDispose<MetricasAdmin>((
+  ref,
+) async {
   final userId = supabase.auth.currentUser!.id;
 
   final perfil = await supabase
@@ -104,14 +106,16 @@ final metricasAdminProvider =
     totalInscriptos += inscripciones.length;
 
     if ((fila['estado'] as String?) == 'vigente') {
-      vigentes.add(EventoResumen(
-        id: fila['id'] as String,
-        nombre: fila['nombre'] as String,
-        fecha: DateTime.parse(fila['fecha'] as String),
-        horaInicio: (fila['hora_inicio'] as String).substring(0, 5),
-        inscriptos: inscripciones.length,
-        cuposMaximos: fila['cupos_maximos'] as int?,
-      ));
+      vigentes.add(
+        EventoResumen(
+          id: fila['id'] as String,
+          nombre: fila['nombre'] as String,
+          fecha: DateTime.parse(fila['fecha'] as String),
+          horaInicio: (fila['hora_inicio'] as String).substring(0, 5),
+          inscriptos: inscripciones.length,
+          cuposMaximos: fila['cupos_maximos'] as int?,
+        ),
+      );
     }
   }
 
@@ -131,40 +135,40 @@ final metricasAdminProvider =
 // ---------------------------------------------------------------
 final progresoEstudianteProvider =
     FutureProvider.autoDispose<ProgresoEstudiante>((ref) async {
-  final userId = supabase.auth.currentUser!.id;
+      final userId = supabase.auth.currentUser!.id;
 
-  final perfil = await supabase
-      .from('usuarios')
-      .select('nombre_completo, carrera, horas_requeridas')
-      .eq('id', userId)
-      .single();
+      final perfil = await supabase
+          .from('usuarios')
+          .select('nombre_completo, carrera, horas_requeridas')
+          .eq('id', userId)
+          .single();
 
-  final inscripciones = await supabase
-      .from('inscripciones')
-      .select('asistencia_confirmada, eventos(horas_otorgadas)')
-      .eq('usuario_id', userId);
+      // Horas acreditadas: asistencia completa (entrada y salida) en eventos no
+      // cancelados. Se calcula en el servidor porque el alumno no ve los eventos
+      // ya finalizados o cancelados (RLS), así que no podría sumarlas acá.
+      final horas = await supabase.rpc('mis_horas_acreditadas');
+      final horasCompletadas = (horas as num?)?.toInt() ?? 0;
 
-  int horasCompletadas = 0;
-  int pendientes = 0;
+      // `eventos` solo viene con datos si el evento sigue vigente (RLS).
+      final inscripciones = await supabase
+          .from('inscripciones')
+          .select('asistencia_confirmada, eventos(id)')
+          .eq('usuario_id', userId);
 
-  for (final fila in inscripciones as List) {
-    final confirmada = fila['asistencia_confirmada'] as bool? ?? false;
-    final evento = fila['eventos'] as Map<String, dynamic>?;
-    final horas = evento?['horas_otorgadas'] as int? ?? 0;
+      // Pendientes: eventos vigentes en los que todavía no completó la asistencia.
+      int pendientes = 0;
+      for (final fila in inscripciones as List) {
+        final confirmada = fila['asistencia_confirmada'] as bool? ?? false;
+        final evento = fila['eventos'];
+        if (!confirmada && evento != null) pendientes += 1;
+      }
 
-    if (confirmada) {
-      horasCompletadas += horas;
-    } else {
-      pendientes += 1;
-    }
-  }
-
-  return ProgresoEstudiante(
-    nombreCompleto: perfil['nombre_completo'] as String,
-    carrera: perfil['carrera'] as String,
-    horasCompletadas: horasCompletadas,
-    horasRequeridas: perfil['horas_requeridas'] as int? ?? 120,
-    eventosInscriptos: inscripciones.length,
-    eventosPendientesAsistencia: pendientes,
-  );
-});
+      return ProgresoEstudiante(
+        nombreCompleto: perfil['nombre_completo'] as String,
+        carrera: perfil['carrera'] as String,
+        horasCompletadas: horasCompletadas,
+        horasRequeridas: perfil['horas_requeridas'] as int? ?? 120,
+        eventosInscriptos: inscripciones.length,
+        eventosPendientesAsistencia: pendientes,
+      );
+    });

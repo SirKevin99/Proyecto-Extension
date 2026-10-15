@@ -684,9 +684,36 @@ BEGIN
     RAISE EXCEPTION 'Indicá el motivo de la corrección (mínimo 5 caracteres)';
   END IF;
 
+  -- Bloquear primero los eventos asociados, en orden estable.
+  PERFORM e.id
+  FROM eventos e
+  WHERE e.id IN (
+    SELECT DISTINCT i.evento_id
+    FROM inscripciones i
+    WHERE i.id = ANY(p_inscripcion_ids)
+  )
+  ORDER BY e.id
+  FOR UPDATE;
+
   FOR r IN
-    SELECT * FROM inscripciones WHERE id = ANY(p_inscripcion_ids) FOR UPDATE
+    SELECT *
+    FROM inscripciones
+    WHERE id = ANY(p_inscripcion_ids)
+    ORDER BY id
+    FOR UPDATE
   LOOP
+    -- El evento ya fue bloqueado antes de procesar las inscripciones.
+    -- Impedir correcciones en eventos cancelados.
+    IF EXISTS (
+      SELECT 1
+      FROM eventos
+      WHERE id = r.evento_id
+        AND estado = 'cancelado'
+    ) THEN
+      RAISE EXCEPTION
+        'No se pueden corregir asistencias de eventos cancelados';
+    END IF;
+
     v_ent := r.entrada_en;
     v_sal := r.salida_en;
 

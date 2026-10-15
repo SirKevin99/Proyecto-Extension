@@ -87,7 +87,10 @@ Deno.serve(async (req) => {
   if (!perfil.activo) {
     return respuesta({ error: "Validador deshabilitado" }, 403);
   }
-  if (perfil.vigente_hasta && new Date(perfil.vigente_hasta) < new Date()) {
+  if (
+    !perfil.vigente_hasta ||
+    new Date(perfil.vigente_hasta).getTime() <= Date.now()
+  ) {
     return respuesta({ error: "Tu acceso como validador venció" }, 403);
   }
 
@@ -116,14 +119,8 @@ Deno.serve(async (req) => {
   });
   if (errRpc) return respuesta({ error: errRpc.message }, 400);
 
-  // La RPC puede devolver el timestamp directo o una fila/objeto.
-  let modoHasta: string | null = null;
-  if (typeof data === "string") modoHasta = data;
-  else if (Array.isArray(data) && data[0]) {
-    modoHasta = data[0].modo_hasta ?? null;
-  } else if (data && typeof data === "object") {
-    modoHasta = (data as any).modo_hasta ?? null;
-  }
+  // La RPC devuelve directamente la fecha de vencimiento.
+  const modoHasta = typeof data === "string" ? data : null;
 
   return respuesta({ exito: true, modo_hasta: modoHasta });
 });

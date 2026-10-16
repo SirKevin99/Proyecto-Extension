@@ -118,6 +118,13 @@ class HomeEstudianteScreen extends ConsumerWidget {
           subtitulo: 'Inscribite a nuevas extensiones',
           onTap: () => context.push(AppRoutes.listaEventos),
         ),
+                const SizedBox(height: 10),
+        _AccesoRapido(
+          icono: Icons.history,
+          titulo: 'Mi historial',
+          subtitulo: 'Tus eventos, asistencias y horas acreditadas',
+          onTap: () => context.push(AppRoutes.historial),
+        ),
         const SizedBox(height: 10),
         _AccesoRapido(
           icono: Icons.workspace_premium_outlined,

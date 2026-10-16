@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../features/home/home_admin_screen.dart';
 import '../features/eventos/crear_evento_screen.dart';
 import '../features/asistencia/panel_asistencia_screen.dart';
+import '../features/eventos/historial_eventos_screen.dart';
 
 import '../features/auth/login_screen.dart';
 import '../features/auth/recuperar_password_screen.dart';
@@ -31,6 +32,7 @@ class AppRoutes {
 
   // --- Alumno ---
   static const String homeEstudiante = '/home-estudiante';
+  static const String historial = '/historial';
   static const String listaEventos = '/eventos';
   static const String detalleEvento = '/eventos/:id';
   static const String marcarAsistencia = '/eventos/:id/marcar';
@@ -122,6 +124,7 @@ Set<RolUsuario>? _rolesPermitidos(String ruta) {
 
   if (_esRuta(ruta, AppRoutes.homeEstudiante) ||
       _esRuta(ruta, AppRoutes.listaEventos) ||
+      _esRuta(ruta, AppRoutes.historial) ||
       _esRuta(ruta, AppRoutes.certificados) ||
       _esRuta(ruta, AppRoutes.carnetQr) ||
       _esRuta(ruta, AppRoutes.perfil)) {
@@ -200,12 +203,17 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.listaEventos,
       builder: (context, state) => const ListaEventosScreen(),
     ),
+        GoRoute(
+      path: AppRoutes.historial,
+      builder: (context, state) => const HistorialEventosScreen(),
+    ),
     GoRoute(
       path: AppRoutes.detalleEvento,
       builder: (context, state) => DetalleEventoScreen(
         eventoId: state.pathParameters['id']!,
       ),
     ),
+    
    GoRoute(
       path: AppRoutes.marcarAsistencia,
       builder: (context, state) => MarcarAsistenciaScreen(

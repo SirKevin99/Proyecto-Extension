@@ -126,7 +126,7 @@ class _MarcarAsistenciaScreenState
           _pinController.clear();
           _snack('PIN incorrecto. Tenés 5 intentos en total.');
         case 'bloqueado':
-          _snack('Superaste los intentos. Pedí un PIN nuevo al organizador.');
+          _snack('Superaste los 5 intentos. Pedile al administrador del evento que registre tu asistencia.');
         case 'pin_no_activo':
           _pinController.clear();
           _snack('El PIN venció o no hay uno activo. Pedí uno nuevo.');

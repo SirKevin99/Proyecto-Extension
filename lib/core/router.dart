@@ -20,6 +20,10 @@ import '../features/admin/alta_usuario_screen.dart';
 import '../features/admin/alta_validador_screen.dart';
 import '../features/admin/lista_validadores_screen.dart';
 
+import '../features/sistema/lista_usuarios_screen.dart';
+import '../features/sistema/editar_usuario_screen.dart';
+import '../features/sistema/auditoria_screen.dart';
+
 /// Rutas nombradas de la app. Las rutas de cada rol viven bajo un
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
 class AppRoutes {
@@ -49,7 +53,12 @@ class AppRoutes {
   static const String altaValidador = '/admin/validadores/nuevo';
 
   static const String validadores = '/admin/validadores';
-   static const String editarEvento = '/admin/eventos/:id/editar';
+  static const String editarEvento = '/admin/eventos/:id/editar';
+
+  // --- Superadmin (prefijo /admin/sistema) ---
+  static const String usuariosSistema = '/admin/sistema/usuarios';
+  static const String editarUsuario = '/admin/sistema/usuarios/:id';
+  static const String auditoriaSistema = '/admin/sistema/auditoria';
 
   // --- Validador temporal (prefijo /validador) ---
   static const String homeValidador = '/validador';
@@ -59,10 +68,11 @@ class AppRoutes {
   static String marcarAsistenciaPath(String id) => '/eventos/$id/marcar';
   static String gestionAsistenciaPath(String id) => '/admin/eventos/$id/asistencia';
   static String editarEventoPath(String id) => '/admin/eventos/$id/editar';
+  static String editarUsuarioPath(String id) => '/admin/sistema/usuarios/$id';
 }
 
 /// Roles válidos, según el CHECK constraint de la tabla `usuarios`.
-enum RolUsuario { alumno, admin, validador }
+enum RolUsuario { alumno, admin, validador, superadmin }
 
 RolUsuario? rolDesdeString(String? valor) {
   switch (valor) {
@@ -72,6 +82,8 @@ RolUsuario? rolDesdeString(String? valor) {
       return RolUsuario.admin;
     case 'validador':
       return RolUsuario.validador;
+    case 'superadmin':
+      return RolUsuario.superadmin;
     default:
       return null; // incluye 'docente' (rol eliminado)
   }
@@ -119,7 +131,13 @@ bool _esRuta(String ruta, String base) =>
 
 /// Roles autorizados para una ruta. `null` = sin restricción de rol.
 Set<RolUsuario>? _rolesPermitidos(String ruta) {
-  if (_esRuta(ruta, '/admin')) return {RolUsuario.admin};
+  
+  if (_esRuta(ruta, '/admin/sistema')) return {RolUsuario.superadmin};
+  
+  // El superadmin usa las mismas pantallas del admin (fase 5).
+  if (_esRuta(ruta, '/admin')) {
+    return {RolUsuario.admin, RolUsuario.superadmin};
+  }
   if (_esRuta(ruta, '/validador')) return {RolUsuario.validador};
 
   if (_esRuta(ruta, AppRoutes.homeEstudiante) ||
@@ -135,7 +153,8 @@ Set<RolUsuario>? _rolesPermitidos(String ruta) {
 
 String _homePorRol(RolUsuario rol) {
   switch (rol) {
-    case RolUsuario.admin:
+     case RolUsuario.admin:
+    case RolUsuario.superadmin:
       return AppRoutes.homeAdmin;
     case RolUsuario.validador:
       return AppRoutes.homeValidador;
@@ -281,6 +300,22 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.homeValidador,
       builder: (context, state) => const PanelAsistenciaScreen(),
+    ),
+
+    // ---------------- Superadmin ----------------
+    GoRoute(
+      path: AppRoutes.usuariosSistema,
+      builder: (context, state) => const ListaUsuariosScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.editarUsuario,
+      builder: (context, state) => EditarUsuarioScreen(
+        usuarioId: state.pathParameters['id']!,
+      ),
+    ),
+    GoRoute(
+      path: AppRoutes.auditoriaSistema,
+      builder: (context, state) => const AuditoriaScreen(),
     ),
   ],
 );

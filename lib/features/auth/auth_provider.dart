@@ -61,7 +61,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _fallar(
           esValidador
               ? 'El código no existe o su vigencia ya venció.'
-              : 'La cédula ingresada no está registrada.',
+              : 'La cédula no está registrada o la cuenta está '
+                  'desactivada. Si creés que es un error, contactá '
+                  'al administrador.',
         );
         return;
       }

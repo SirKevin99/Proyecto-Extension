@@ -52,7 +52,11 @@ Deno.serve(async (req: Request) => {
       .eq("id", user.id)
       .single();
 
-    if (perfil?.rol !== "admin" || perfil?.activo !== true) {
+    const esSuperadmin = perfil?.rol === "superadmin";
+    if (
+      !["admin", "superadmin"].includes(perfil?.rol ?? "") ||
+      perfil?.activo !== true
+    ) {
       return respuesta(
         { error: "Solo un administrador puede crear usuarios" },
         403,
@@ -67,9 +71,18 @@ Deno.serve(async (req: Request) => {
 
     const entrada: Entrada = await req.json();
 
+    // Fase 5: solo el superadmin crea administradores.
+    if (entrada.rol === "admin" && !esSuperadmin) {
+      return respuesta(
+        { error: "Solo el superadmin puede crear administradores" },
+        403,
+      );
+    }
+
+    // user.id = quien da el alta (auditoría, script 17)
     const resultado = entrada.rol === "validador"
-      ? await crearValidador(admin, entrada)
-      : await crearUsuarioNormal(admin, entrada);
+      ? await crearValidador(admin, entrada, user.id)
+      : await crearUsuarioNormal(admin, entrada, user.id);
 
     return respuesta(resultado, resultado.exito ? 200 : 400);
   } catch (e) {
@@ -83,6 +96,7 @@ Deno.serve(async (req: Request) => {
 async function crearUsuarioNormal(
   admin: ReturnType<typeof createClient>,
   u: Entrada,
+  creadoPor: string,
 ) {
   if (
     !["alumno", "admin"].includes(u.rol) ||
@@ -124,6 +138,7 @@ async function crearUsuarioNormal(
       correo_institucional: correo,
       carrera: u.carrera.trim(),
       rol: u.rol,
+      creado_por: creadoPor,
     },
   });
 }
@@ -134,6 +149,7 @@ async function crearUsuarioNormal(
 async function crearValidador(
   admin: ReturnType<typeof createClient>,
   u: Entrada,
+  creadoPor: string,
 ) {
   if (!u.nombre_completo?.trim() || !u.evento_id) {
     return { exito: false, error: "Faltan el nombre y el evento asignado" };
@@ -209,6 +225,7 @@ async function crearValidador(
       rol: "validador",
       evento_asignado_id: u.evento_id,
       vigente_hasta: vigenteHasta.toISOString(),
+      creado_por: creadoPor,
     },
   });
 

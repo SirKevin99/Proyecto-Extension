@@ -52,7 +52,11 @@ Deno.serve(async (req: Request) => {
       .eq("id", user.id)
       .single();
 
-    if (perfil?.rol !== "admin" || perfil?.activo !== true) {
+    const esSuperadmin = perfil?.rol === "superadmin";
+    if (
+      !["admin", "superadmin"].includes(perfil?.rol ?? "") ||
+      perfil?.activo !== true
+    ) {
       return respuesta(
         { error: "Solo un administrador puede crear usuarios" },
         403,
@@ -66,6 +70,14 @@ Deno.serve(async (req: Request) => {
     );
 
     const entrada: Entrada = await req.json();
+
+    // Fase 5: solo el superadmin crea administradores.
+    if (entrada.rol === "admin" && !esSuperadmin) {
+      return respuesta(
+        { error: "Solo el superadmin puede crear administradores" },
+        403,
+      );
+    }
 
     const resultado = entrada.rol === "validador"
       ? await crearValidador(admin, entrada)

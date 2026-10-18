@@ -62,7 +62,7 @@ class AppRoutes {
 }
 
 /// Roles válidos, según el CHECK constraint de la tabla `usuarios`.
-enum RolUsuario { alumno, admin, validador }
+enum RolUsuario { alumno, admin, validador, superadmin }
 
 RolUsuario? rolDesdeString(String? valor) {
   switch (valor) {
@@ -72,6 +72,8 @@ RolUsuario? rolDesdeString(String? valor) {
       return RolUsuario.admin;
     case 'validador':
       return RolUsuario.validador;
+    case 'superadmin':
+      return RolUsuario.superadmin;
     default:
       return null; // incluye 'docente' (rol eliminado)
   }
@@ -119,7 +121,10 @@ bool _esRuta(String ruta, String base) =>
 
 /// Roles autorizados para una ruta. `null` = sin restricción de rol.
 Set<RolUsuario>? _rolesPermitidos(String ruta) {
-  if (_esRuta(ruta, '/admin')) return {RolUsuario.admin};
+   // El superadmin usa las mismas pantallas del admin (fase 5).
+  if (_esRuta(ruta, '/admin')) {
+    return {RolUsuario.admin, RolUsuario.superadmin};
+  }
   if (_esRuta(ruta, '/validador')) return {RolUsuario.validador};
 
   if (_esRuta(ruta, AppRoutes.homeEstudiante) ||
@@ -135,7 +140,8 @@ Set<RolUsuario>? _rolesPermitidos(String ruta) {
 
 String _homePorRol(RolUsuario rol) {
   switch (rol) {
-    case RolUsuario.admin:
+     case RolUsuario.admin:
+    case RolUsuario.superadmin:
       return AppRoutes.homeAdmin;
     case RolUsuario.validador:
       return AppRoutes.homeValidador;

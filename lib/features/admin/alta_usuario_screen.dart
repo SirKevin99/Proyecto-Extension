@@ -6,6 +6,8 @@ import '../../core/theme.dart';
 import '../../shared/carreras_provider.dart';
 import 'admin_usuarios_provider.dart';
 
+import '../../core/router.dart';
+
 class AltaUsuarioScreen extends ConsumerStatefulWidget {
   const AltaUsuarioScreen({super.key});
 
@@ -144,7 +146,12 @@ class _AltaUsuarioScreenState extends ConsumerState<AltaUsuarioScreen> {
               Wrap(
                 spacing: 8,
                 children: [
-                  for (final r in const ['alumno', 'admin'])
+                 for (final r in [
+                    'alumno',
+                    // Solo el superadmin crea administradores (fase 5).
+                    if (SessionSnapshot.instance.rol == RolUsuario.superadmin)
+                      'admin',
+                  ])
                     ChoiceChip(
                       label: Text(r == 'alumno' ? 'Alumno' : 'Administrador'),
                       selected: _rol == r,

@@ -1,26 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/supabase_client.dart';
 import '../../core/theme.dart';
+import '../../shared/carreras_provider.dart';
 import 'admin_usuarios_provider.dart';
 
-class AltaUsuarioScreen extends StatefulWidget {
+class AltaUsuarioScreen extends ConsumerStatefulWidget {
   const AltaUsuarioScreen({super.key});
 
   @override
-  State<AltaUsuarioScreen> createState() => _AltaUsuarioScreenState();
+  ConsumerState<AltaUsuarioScreen> createState() => _AltaUsuarioScreenState();
 }
 
-class _AltaUsuarioScreenState extends State<AltaUsuarioScreen> {
+class _AltaUsuarioScreenState extends ConsumerState<AltaUsuarioScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _nombreController = TextEditingController();
   final _ciController = TextEditingController();
   final _correoController = TextEditingController();
-  final _carreraController = TextEditingController();
   final _passwordController = TextEditingController();
 
   String _rol = 'alumno';
+  String? _carrera; // nombre completo de la lista oficial
   bool _passwordVisible = false;
   bool _guardando = false;
 
@@ -29,7 +31,6 @@ class _AltaUsuarioScreenState extends State<AltaUsuarioScreen> {
     _nombreController.dispose();
     _ciController.dispose();
     _correoController.dispose();
-    _carreraController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -38,10 +39,12 @@ class _AltaUsuarioScreenState extends State<AltaUsuarioScreen> {
     _nombreController.clear();
     _ciController.clear();
     _correoController.clear();
-    _carreraController.clear();
     _passwordController.clear();
+    setState(() {
+      _rol = 'alumno';
+      _carrera = null;
+    });
     _formKey.currentState?.reset();
-    setState(() => _rol = 'alumno');
   }
 
   Future<void> _guardar() async {
@@ -58,7 +61,7 @@ class _AltaUsuarioScreenState extends State<AltaUsuarioScreen> {
         nombreCompleto: nombre,
         ci: _ciController.text.trim(),
         correoLocal: _correoController.text.trim(),
-        carrera: _carreraController.text.trim(),
+        carrera: _carrera!,
         password: _passwordController.text,
       );
       if (!mounted) return;
@@ -77,6 +80,52 @@ class _AltaUsuarioScreenState extends State<AltaUsuarioScreen> {
     } finally {
       if (mounted) setState(() => _guardando = false);
     }
+  }
+
+  Widget _campoCarrera() {
+    final carrerasAsync = ref.watch(carrerasProvider);
+
+    return carrerasAsync.when(
+      loading: () => const InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Carrera',
+          prefixIcon: Icon(Icons.school_outlined),
+        ),
+        child: LinearProgressIndicator(),
+      ),
+      error: (_, _) => InputDecorator(
+        decoration: const InputDecoration(
+          labelText: 'Carrera',
+          prefixIcon: Icon(Icons.school_outlined),
+          errorText: 'No se pudo cargar la lista de carreras',
+        ),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => ref.invalidate(carrerasProvider),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Reintentar'),
+          ),
+        ),
+      ),
+      data: (carreras) => DropdownButtonFormField<String>(
+        value: _carrera,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'Carrera',
+          prefixIcon: Icon(Icons.school_outlined),
+        ),
+        items: [
+          for (final c in carreras)
+            DropdownMenuItem(
+              value: c.nombre,
+              child: Text(c.nombre, overflow: TextOverflow.ellipsis),
+            ),
+        ],
+        onChanged: (v) => setState(() => _carrera = v),
+        validator: (v) => v == null ? 'Seleccioná la carrera' : null,
+      ),
+    );
   }
 
   @override
@@ -157,17 +206,7 @@ class _AltaUsuarioScreenState extends State<AltaUsuarioScreen> {
               ),
               const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _carreraController,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Carrera',
-                  prefixIcon: Icon(Icons.school_outlined),
-                ),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Ingresá la carrera'
-                    : null,
-              ),
+              _campoCarrera(),
               const SizedBox(height: 16),
 
               TextFormField(

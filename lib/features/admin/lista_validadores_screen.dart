@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -57,6 +58,65 @@ class ListaValidadoresScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _restablecerClave(
+      BuildContext context, WidgetRef ref, ValidadorActivo v) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restablecer clave'),
+        content: Text(
+          'Se generará una clave nueva para ${v.nombre}. La clave actual '
+          'dejará de funcionar y la acción quedará registrada.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Restablecer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !context.mounted) return;
+
+    // Indicador de carga mientras responde el servidor.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    );
+
+    try {
+      final resultado = await restablecerClaveValidador(v.id);
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // cierra la carga
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _DialogoClaveNueva(
+          nombre: v.nombre,
+          resultado: resultado,
+        ),
+      );
+    } on RestablecerClaveException catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // cierra la carga
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.mensaje),
+        backgroundColor: UniNorteColors.error,
+        behavior: SnackBarBehavior.floating,
+      ));
+      // Puede haber vencido o sido deshabilitado: refresca la lista.
+      ref.invalidate(validadoresProvider);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(validadoresProvider);
@@ -106,12 +166,13 @@ class ListaValidadoresScreen extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                   itemCount: lista.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, i) =>
-                      _TarjetaValidador(
-                        validador: lista[i],
-                        onDeshabilitar: () =>
-                            _deshabilitar(context, ref, lista[i]),
-                      ),
+                  itemBuilder: (context, i) => _TarjetaValidador(
+                    validador: lista[i],
+                    onRestablecer: () =>
+                        _restablecerClave(context, ref, lista[i]),
+                    onDeshabilitar: () =>
+                        _deshabilitar(context, ref, lista[i]),
+                  ),
                 ),
         ),
       ),
@@ -121,10 +182,12 @@ class ListaValidadoresScreen extends ConsumerWidget {
 
 class _TarjetaValidador extends StatelessWidget {
   final ValidadorActivo validador;
+  final VoidCallback onRestablecer;
   final VoidCallback onDeshabilitar;
 
   const _TarjetaValidador({
     required this.validador,
+    required this.onRestablecer,
     required this.onDeshabilitar,
   });
 
@@ -155,7 +218,19 @@ class _TarjetaValidador extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            if (v.codigo != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.badge_outlined,
+                      size: 14, color: UniNorteColors.textoSecundario),
+                  const SizedBox(width: 6),
+                  Text('Código ${v.codigo}',
+                      style: Theme.of(context).textTheme.bodyMedium),
+                ],
+              ),
+            ],
+            const SizedBox(height: 4),
             Row(
               children: [
                 const Icon(Icons.event_note_outlined,
@@ -185,20 +260,150 @@ class _TarjetaValidador extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onDeshabilitar,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: UniNorteColors.error,
-                  side: const BorderSide(color: UniNorteColors.error),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onRestablecer,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: UniNorteColors.azulMarino,
+                      side: const BorderSide(color: UniNorteColors.azulMarino),
+                    ),
+                    icon: const Icon(Icons.key_outlined, size: 18),
+                    label: const Text('Restablecer clave'),
+                  ),
                 ),
-                icon: const Icon(Icons.block, size: 18),
-                label: const Text('Deshabilitar'),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onDeshabilitar,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: UniNorteColors.error,
+                      side: const BorderSide(color: UniNorteColors.error),
+                    ),
+                    icon: const Icon(Icons.block, size: 18),
+                    label: const Text('Deshabilitar'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Muestra el código y la clave nueva UNA sola vez.
+class _DialogoClaveNueva extends StatelessWidget {
+  final String nombre;
+  final ClaveRestablecida resultado;
+
+  const _DialogoClaveNueva({required this.nombre, required this.resultado});
+
+  @override
+  Widget build(BuildContext context) {
+    final fmtVence = DateFormat('dd/MM HH:mm');
+
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: const Text('Clave restablecida'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Entregale estos datos a $nombre:'),
+            const SizedBox(height: 16),
+            _DatoCopiable(etiqueta: 'Código', valor: resultado.codigo),
+            const SizedBox(height: 10),
+            _DatoCopiable(etiqueta: 'Clave nueva', valor: resultado.password),
+            const SizedBox(height: 12),
+            Text(
+              'Vigente hasta el ${fmtVence.format(resultado.vigenteHasta)}',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: UniNorteColors.dorado.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: UniNorteColors.azulMarino, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Esta clave se muestra una sola vez. Si la perdés, '
+                      'tenés que restablecerla de nuevo.',
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Ya la anoté'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DatoCopiable extends StatelessWidget {
+  final String etiqueta;
+  final String valor;
+
+  const _DatoCopiable({required this.etiqueta, required this.valor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(etiqueta, style: Theme.of(context).textTheme.bodyMedium),
+                SelectableText(
+                  valor,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'monospace',
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Copiar',
+            icon: const Icon(Icons.copy_outlined),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: valor));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('$etiqueta copiado')),
+                );
+              }
+            },
+          ),
+        ],
       ),
     );
   }

@@ -5,24 +5,31 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme.dart';
+import '../../shared/carreras_provider.dart';
 import '../home/home_provider.dart';
 import 'admin_eventos_provider.dart';
 import 'eventos_provider.dart';
 
-/// Carga el evento y abre el formulario en modo edición.
+/// Carga el evento y sus carreras, y abre el formulario en modo edición.
 class EditarEventoScreen extends ConsumerWidget {
   final String eventoId;
   const EditarEventoScreen({super.key, required this.eventoId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(eventoPorIdProvider(eventoId));
-    return async.when(
-      loading: () => Scaffold(
-        appBar: AppBar(title: const Text('Editar evento')),
-        body: const Center(child: CircularProgressIndicator()),
-      ),
-      error: (_, _) => Scaffold(
+    final eventoAsync = ref.watch(eventoPorIdProvider(eventoId));
+    final carrerasAsync = ref.watch(carrerasDeEventoProvider(eventoId));
+    final cargando = eventoAsync.isLoading || carrerasAsync.isLoading;
+
+    if (!cargando && eventoAsync.hasValue && carrerasAsync.hasValue) {
+      return CrearEventoScreen(
+        evento: eventoAsync.requireValue,
+        carrerasIniciales: carrerasAsync.requireValue,
+      );
+    }
+
+    if (!cargando && (eventoAsync.hasError || carrerasAsync.hasError)) {
+      return Scaffold(
         appBar: AppBar(title: const Text('Editar evento')),
         body: Center(
           child: Column(
@@ -31,14 +38,21 @@ class EditarEventoScreen extends ConsumerWidget {
               const Text('No se pudo cargar el evento'),
               const SizedBox(height: 12),
               OutlinedButton(
-                onPressed: () => ref.invalidate(eventoPorIdProvider(eventoId)),
+                onPressed: () {
+                  ref.invalidate(eventoPorIdProvider(eventoId));
+                  ref.invalidate(carrerasDeEventoProvider(eventoId));
+                },
                 child: const Text('Reintentar'),
               ),
             ],
           ),
         ),
-      ),
-      data: (evento) => CrearEventoScreen(evento: evento),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Editar evento')),
+      body: const Center(child: CircularProgressIndicator()),
     );
   }
 }
@@ -46,7 +60,15 @@ class EditarEventoScreen extends ConsumerWidget {
 /// Formulario de evento. Con [evento] nulo crea; con valor, edita.
 class CrearEventoScreen extends ConsumerStatefulWidget {
   final Evento? evento;
-  const CrearEventoScreen({super.key, this.evento});
+
+  /// Ids de las carreras habilitadas al abrir la edición.
+  final Set<int> carrerasIniciales;
+
+  const CrearEventoScreen({
+    super.key,
+    this.evento,
+    this.carrerasIniciales = const {},
+  });
 
   @override
   ConsumerState<CrearEventoScreen> createState() => _CrearEventoScreenState();
@@ -69,6 +91,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
   TimeOfDay? _horaInicio;
   TimeOfDay? _horaFin;
   bool _cupoIlimitado = false;
+  final Set<int> _carrerasSel = {};
 
   bool _intentoEnviar = false;
 
@@ -77,6 +100,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
   @override
   void initState() {
     super.initState();
+    _carrerasSel.addAll(widget.carrerasIniciales);
     final e = widget.evento;
     if (e == null) return;
     _nombreController.text = e.nombre;
@@ -176,7 +200,8 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
       _fecha != null &&
       _horaInicio != null &&
       _horaFin != null &&
-      _errorHoraFin == null;
+      _errorHoraFin == null &&
+      _carrerasSel.isNotEmpty;
 
   String? _vacioSiNulo(String texto) {
     final t = texto.trim();
@@ -196,6 +221,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
 
     final cupos = _cupoIlimitado ? null : int.parse(_cuposController.text.trim());
     final tolerancia = int.parse(_toleranciaController.text.trim());
+    final carreras = Set<int>.of(_carrerasSel);
 
     final exito = _editando
         ? await notifier.editar(
@@ -212,6 +238,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
             horasOtorgadas: int.parse(_horasController.text.trim()),
             cuposMaximos: cupos,
             toleranciaEntradaMin: tolerancia,
+            carreraIds: carreras,
           )
         : await notifier.crear(
             nombre: _nombreController.text.trim(),
@@ -226,6 +253,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
             horasOtorgadas: int.parse(_horasController.text.trim()),
             cuposMaximos: cupos,
             toleranciaEntradaMin: tolerancia,
+            carreraIds: carreras,
           );
 
     if (!exito) return; // el ref.listen de build muestra el error
@@ -236,6 +264,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
     if (_editando) {
       ref.invalidate(eventoPorIdProvider(widget.evento!.id));
       ref.invalidate(detalleEventoProvider(widget.evento!.id));
+      ref.invalidate(carrerasDeEventoProvider(widget.evento!.id));
     }
 
     messenger.showSnackBar(
@@ -251,7 +280,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
   }
 
   String _mensajeError(Object error) {
-    // Los mensajes de la RPC de edición ya vienen listos para el usuario.
+    // Los mensajes de las RPC ya vienen listos para el usuario.
     if (error is PostgrestException && error.code == 'P0001') {
       return error.message;
     }
@@ -262,6 +291,92 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
     return _editando
         ? 'No se pudo guardar el evento. Intentá nuevamente.'
         : 'No se pudo crear el evento. Intentá nuevamente.';
+  }
+
+  /// Selección de carreras habilitadas, con opción "Todas las carreras".
+  Widget _seccionCarreras() {
+    final carrerasAsync = ref.watch(carrerasProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _Etiqueta('Carreras habilitadas'),
+        carrerasAsync.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: LinearProgressIndicator(),
+          ),
+          error: (_, _) => Row(
+            children: [
+              const Expanded(
+                child: _TextoError('No se pudo cargar la lista de carreras'),
+              ),
+              TextButton.icon(
+                onPressed: () => ref.invalidate(carrerasProvider),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
+              ),
+            ],
+          ),
+          data: (carreras) {
+            final ids = carreras.map((c) => c.id).toSet();
+            final marcadas = ids.where(_carrerasSel.contains).length;
+            final todas = ids.isNotEmpty && marcadas == ids.length;
+            final bool? valorTodas =
+                todas ? true : (marcadas == 0 ? false : null);
+
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                children: [
+                  CheckboxListTile(
+                    dense: true,
+                    tristate: true,
+                    value: valorTodas,
+                    activeColor: UniNorteColors.azulMarino,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: const Text(
+                      'Todas las carreras',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text('$marcadas de ${ids.length} seleccionadas'),
+                    onChanged: (_) => setState(() {
+                      if (todas) {
+                        _carrerasSel.removeAll(ids);
+                      } else {
+                        _carrerasSel.addAll(ids);
+                      }
+                    }),
+                  ),
+                  const Divider(height: 1),
+                  for (final c in carreras)
+                    CheckboxListTile(
+                      dense: true,
+                      value: _carrerasSel.contains(c.id),
+                      activeColor: UniNorteColors.azulMarino,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: Text(c.nombre),
+                      onChanged: (v) => setState(() {
+                        if (v == true) {
+                          _carrerasSel.add(c.id);
+                        } else {
+                          _carrerasSel.remove(c.id);
+                        }
+                      }),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+        if (_intentoEnviar && _carrerasSel.isEmpty)
+          const _TextoError('Seleccioná al menos una carrera'),
+      ],
+    );
   }
 
   @override
@@ -424,6 +539,9 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
                     )
                     .toList(),
               ),
+              const SizedBox(height: 16),
+
+              _seccionCarreras(),
               const SizedBox(height: 16),
 
               TextFormField(

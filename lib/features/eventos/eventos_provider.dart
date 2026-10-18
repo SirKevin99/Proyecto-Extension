@@ -114,6 +114,8 @@ final filtrosEventosProvider =
 
 // ---------------------------------------------------------------
 // Catálogo de eventos activos (para alumno)
+// RLS ya filtra por carrera: el alumno solo recibe los eventos
+// habilitados para su carrera o en los que ya está inscripto.
 // ---------------------------------------------------------------
 
 final catalogoEventosProvider =
@@ -202,9 +204,8 @@ class InscripcionNotifier extends StateNotifier<AsyncValue<void>> {
   /// El decremento de `cupos_disponibles` se hace vía función RPC
   /// (`inscribirse_a_evento`) para garantizar atomicidad: dos alumnos
   /// inscribiéndose al último cupo simultáneamente NO deben poder
-  /// generar overbooking. Esto no puede resolverse de forma segura
-  /// con dos queries separadas (select cupos + insert) desde el
-  /// cliente, por eso se delega a la base de datos.
+  /// generar overbooking. La RPC también valida que el evento esté
+  /// habilitado para la carrera del alumno.
   Future<bool> inscribirse(String eventoId) async {
     state = const AsyncValue.loading();
     try {
@@ -236,12 +237,25 @@ final eventoPorIdProvider =
   return Evento.fromMap(fila);
 });
 
+/// Ids de las carreras habilitadas para un evento (solo admin, por RLS).
+final carrerasDeEventoProvider =
+    FutureProvider.autoDispose.family<Set<int>, String>((ref, eventoId) async {
+  final filas = await supabase
+      .from('evento_carreras')
+      .select('carrera_id')
+      .eq('evento_id', eventoId);
+
+  return (filas as List)
+      .map((f) => ((f as Map<String, dynamic>)['carrera_id'] as num).toInt())
+      .toSet();
+});
+
 class CrearEventoNotifier extends StateNotifier<AsyncValue<void>> {
   CrearEventoNotifier() : super(const AsyncValue.data(null));
 
-  /// `cuposMaximos` nulo = cupo ilimitado (`cupos_disponibles` también nulo).
-  /// `creado_por` debe ser auth.uid(): la policy `eventos_insert_admin`
-  /// rechaza cualquier otro valor.
+  /// Crea el evento y sus carreras en una sola transacción
+  /// (RPC `crear_evento`). `cuposMaximos` nulo = cupo ilimitado.
+  /// [carreraIds] debe tener al menos una carrera (lo valida el servidor).
   Future<bool> crear({
     required String nombre,
     String? descripcion,
@@ -255,24 +269,24 @@ class CrearEventoNotifier extends StateNotifier<AsyncValue<void>> {
     required int horasOtorgadas,
     int? cuposMaximos,
     required int toleranciaEntradaMin,
+    required Set<int> carreraIds,
   }) async {
     state = const AsyncValue.loading();
     try {
-      await supabase.from('eventos').insert({
-        'nombre': nombre,
-        'descripcion': descripcion,
-        'categoria': categoria,
-        'expositor': expositor,
-        'fecha': fecha,
-        'hora_inicio': horaInicio,
-        'hora_fin': horaFin,
-        'ubicacion': ubicacion,
-        'modalidad': modalidad,
-        'horas_otorgadas': horasOtorgadas,
-        'cupos_maximos': cuposMaximos,
-        'cupos_disponibles': cuposMaximos,
-        'tolerancia_entrada_min': toleranciaEntradaMin,
-        'creado_por': supabase.auth.currentUser!.id,
+      await supabase.rpc('crear_evento', params: {
+        'p_nombre': nombre,
+        'p_descripcion': descripcion,
+        'p_categoria': categoria,
+        'p_expositor': expositor,
+        'p_fecha': fecha,
+        'p_hora_inicio': horaInicio,
+        'p_hora_fin': horaFin,
+        'p_ubicacion': ubicacion,
+        'p_modalidad': modalidad,
+        'p_horas_otorgadas': horasOtorgadas,
+        'p_cupos_maximos': cuposMaximos,
+        'p_tolerancia_min': toleranciaEntradaMin,
+        'p_carrera_ids': carreraIds.toList(),
       });
       state = const AsyncValue.data(null);
       return true;
@@ -283,6 +297,8 @@ class CrearEventoNotifier extends StateNotifier<AsyncValue<void>> {
   }
 
   /// La edición la valida y ejecuta el servidor (RPC `editar_evento`).
+  /// Después se reemplazan las carreras (RPC `definir_carreras_evento`);
+  /// las inscripciones existentes no se modifican.
   Future<bool> editar({
     required String eventoId,
     required String nombre,
@@ -297,6 +313,7 @@ class CrearEventoNotifier extends StateNotifier<AsyncValue<void>> {
     required int horasOtorgadas,
     int? cuposMaximos,
     required int toleranciaEntradaMin,
+    required Set<int> carreraIds,
   }) async {
     state = const AsyncValue.loading();
     try {
@@ -314,6 +331,10 @@ class CrearEventoNotifier extends StateNotifier<AsyncValue<void>> {
         'p_horas_otorgadas': horasOtorgadas,
         'p_cupos_maximos': cuposMaximos,
         'p_tolerancia_min': toleranciaEntradaMin,
+      });
+      await supabase.rpc('definir_carreras_evento', params: {
+        'p_evento_id': eventoId,
+        'p_carrera_ids': carreraIds.toList(),
       });
       state = const AsyncValue.data(null);
       return true;

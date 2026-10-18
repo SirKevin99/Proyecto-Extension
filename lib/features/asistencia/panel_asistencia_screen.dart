@@ -280,9 +280,13 @@ class _PanelAsistenciaScreenState extends ConsumerState<PanelAsistenciaScreen> {
       if (!mounted) return;
       setState(() {
         _pin = pin.codigo;
-        // Se cuenta desde acá: no depende del reloj del dispositivo.
+        // Se cuenta desde acá con los segundos que informa el servidor:
+        // no depende del reloj del dispositivo. Si otro validador ya lo
+        // mostró, le quedan menos de 20 s.
         _pinExpira = DateTime.now().add(
-          const Duration(seconds: _duracionPinSeg),
+          Duration(
+            seconds: pin.segundosRestantes.clamp(0, _duracionPinSeg).toInt(),
+          ),
         );
       });
     } catch (e) {
@@ -336,9 +340,9 @@ class _PanelAsistenciaScreenState extends ConsumerState<PanelAsistenciaScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Finalizar la sesión de asistencia'),
         content: const Text(
-          'Se cierra el registro de entrada y de salida. El QR y el PIN '
-          'dejarán de funcionar de inmediato. Los alumnos ya registrados '
-          'no se ven afectados.',
+          'Se cierra el registro de entrada y de salida para TODOS los '
+          'validadores del evento. El QR y el PIN dejarán de funcionar de '
+          'inmediato. Los alumnos ya registrados no se ven afectados.',
         ),
         actions: [
           TextButton(
@@ -627,7 +631,8 @@ class _PanelAsistenciaScreenState extends ConsumerState<PanelAsistenciaScreen> {
             const SizedBox(height: 4),
             Text(
               'Para alumnos que no pueden escanear el QR. '
-              'Aparece solo cuando lo pedís y dura $_duracionPinSeg segundos.',
+              'Aparece solo cuando lo pedís y dura $_duracionPinSeg segundos. '
+              'Si otro validador ya lo mostró, vas a ver el mismo PIN.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
@@ -664,11 +669,14 @@ class _PanelAsistenciaScreenState extends ConsumerState<PanelAsistenciaScreen> {
               ),
               const SizedBox(height: 12),
             ],
-            OutlinedButton.icon(
-              onPressed: _activandoPin ? null : _activarPin,
-              icon: const Icon(Icons.pin_outlined),
-              label: Text(vigente ? 'Generar un PIN nuevo' : 'Mostrar PIN'),
-            ),
+            // Mientras el PIN está vigente no se puede pedir otro: el
+            // servidor devolvería el mismo (es compartido entre validadores).
+            if (!vigente)
+              OutlinedButton.icon(
+                onPressed: _activandoPin ? null : _activarPin,
+                icon: const Icon(Icons.pin_outlined),
+                label: const Text('Mostrar PIN'),
+              ),
           ],
         ),
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/supabase_client.dart';
+import '../eventos/eventos_provider.dart';
 
 // ---------------------------------------------------------------
 // Modelos ligeros de este módulo (solo lo que la UI necesita).
@@ -172,3 +173,104 @@ final progresoEstudianteProvider =
         eventosPendientesAsistencia: pendientes,
       );
     });
+
+// ---------------------------------------------------------------
+// Ajuste 4: próximos eventos del alumno (inicio)
+// ---------------------------------------------------------------
+
+/// Un evento próximo con el estado del alumno respecto a él.
+class EventoProximo {
+  final Evento evento;
+  final bool inscripto;
+  final bool enCurso;
+
+  const EventoProximo({
+    required this.evento,
+    required this.inscripto,
+    required this.enCurso,
+  });
+}
+
+/// [destacado]: el evento más cercano (en curso o por empezar), esté o no
+/// inscripto. [siguientes]: los que vienen después, para la lista corta.
+class ProximosEventosAlumno {
+  final EventoProximo? destacado;
+  final List<EventoProximo> siguientes;
+
+  const ProximosEventosAlumno({
+    required this.destacado,
+    required this.siguientes,
+  });
+}
+
+/// Cantidad de eventos que se muestran debajo del destacado.
+const int _maxSiguientes = 3;
+
+DateTime _combinar(DateTime fecha, String hhmm) {
+  final p = hhmm.split(':');
+  return DateTime(
+    fecha.year,
+    fecha.month,
+    fecha.day,
+    int.parse(p[0]),
+    int.parse(p[1]),
+  );
+}
+
+/// La RLS ya entrega solo los eventos habilitados para la carrera del
+/// alumno o en los que está inscripto, así que acá no se filtra por carrera.
+/// Se descartan los que ya terminaron (`hora_fin` pasada); los que están
+/// ocurriendo se mantienen.
+/// La hora se compara con la del dispositivo (se asume America/Asuncion).
+final proximosEventosAlumnoProvider =
+    FutureProvider.autoDispose<ProximosEventosAlumno>((ref) async {
+  final userId = supabase.auth.currentUser!.id;
+  final ahora = DateTime.now();
+  final hoy =
+      '${ahora.year.toString().padLeft(4, '0')}-'
+      '${ahora.month.toString().padLeft(2, '0')}-'
+      '${ahora.day.toString().padLeft(2, '0')}';
+
+  final filas = await supabase
+      .from('eventos')
+      .select()
+      .eq('activo', true)
+      .gte('fecha', hoy)
+      .order('fecha')
+      .order('hora_inicio')
+      .limit(20);
+
+  final eventos = (filas as List)
+      .map((f) => Evento.fromMap(f as Map<String, dynamic>))
+      .where((e) => _combinar(e.fecha, e.horaFin).isAfter(ahora))
+      .take(_maxSiguientes + 1)
+      .toList();
+
+  if (eventos.isEmpty) {
+    return const ProximosEventosAlumno(destacado: null, siguientes: []);
+  }
+
+  final inscripciones = await supabase
+      .from('inscripciones')
+      .select('evento_id')
+      .eq('usuario_id', userId)
+      .inFilter('evento_id', eventos.map((e) => e.id).toList());
+
+  final inscriptos = (inscripciones as List)
+      .map((f) => (f as Map<String, dynamic>)['evento_id'] as String)
+      .toSet();
+
+  final proximos = [
+    for (final e in eventos)
+      EventoProximo(
+        evento: e,
+        inscripto: inscriptos.contains(e.id),
+        enCurso: !_combinar(e.fecha, e.horaInicio).isAfter(ahora),
+      ),
+  ];
+
+  return ProximosEventosAlumno(
+    destacado: proximos.first,
+    siguientes: proximos.skip(1).toList(),
+  );
+});

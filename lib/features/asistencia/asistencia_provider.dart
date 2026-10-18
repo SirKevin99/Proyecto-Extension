@@ -47,12 +47,21 @@ class EstadoSesion {
   const EstadoSesion({required this.abierta, this.modo, this.modoHasta});
 }
 
-/// PIN de respaldo recién generado.
+/// PIN de respaldo. Si otro validador ya tenía uno vigente, el servidor
+/// devuelve ese mismo (script 14b).
 class PinGenerado {
   final String codigo;
   final DateTime venceEn;
 
-  const PinGenerado({required this.codigo, required this.venceEn});
+  /// Segundos que le quedan según el servidor (no depende del reloj
+  /// del dispositivo).
+  final int segundosRestantes;
+
+  const PinGenerado({
+    required this.codigo,
+    required this.venceEn,
+    required this.segundosRestantes,
+  });
 }
 
 /// Marcajes del alumno autenticado en un evento.
@@ -187,7 +196,8 @@ class AsistenciaService {
     return r as String;
   }
 
-  /// PIN de 4 dígitos que vive 20 s. Se genera solo a pedido.
+  /// PIN de 4 dígitos que vive 20 s. Se genera solo a pedido; si ya hay
+  /// uno vigente en la sesión (de cualquier validador), devuelve ese.
   static Future<PinGenerado> activarPin(String sesionId) async {
     final data = await supabase.rpc(
       'activar_pin',
@@ -195,9 +205,12 @@ class AsistenciaService {
     );
     final filas = data as List;
     final f = filas.first as Map<String, dynamic>;
+    final venceEn = DateTime.parse(f['vence_en'] as String).toLocal();
     return PinGenerado(
       codigo: f['pin_codigo'] as String,
-      venceEn: DateTime.parse(f['vence_en'] as String).toLocal(),
+      venceEn: venceEn,
+      // Sin el script 14b no viene el dato: se usa el máximo (20 s).
+      segundosRestantes: (f['segundos_restantes'] as num?)?.toInt() ?? 20,
     );
   }
 

@@ -94,7 +94,9 @@ class _AltaValidadorScreenState extends ConsumerState<AltaValidadorScreen> {
         children: [
           Text(
             'El validador es un acceso temporal para marcar la asistencia '
-            'de un solo evento. Vence 1 hora después de que termina.',
+            'de un solo evento. Vence 1 hora después de que termina. '
+            'Cada evento admite hasta 5 validadores activos, que comparten '
+            'la misma sesión de asistencia.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 20),

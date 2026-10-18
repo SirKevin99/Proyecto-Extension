@@ -9,6 +9,7 @@ const corsHeaders = {
 
 const DOMINIO = "@uninorte.edu.py";
 const ZONA = "-03:00"; // America/Asuncion
+const MAX_VALIDADORES_POR_EVENTO = 5; // también lo exige la base (script 14)
 
 interface Entrada {
   rol: "alumno" | "admin" | "validador";
@@ -162,19 +163,23 @@ async function crearValidador(
     return { exito: false, error: "La vigencia debe ser una fecha futura" };
   }
 
-  // Un solo validador activo por evento.
-  const { data: yaExiste } = await admin
+  // Máximo 5 validadores activos por evento (ajuste 1). La base lo
+  // vuelve a verificar con un trigger, por si dos altas llegan juntas.
+  const { count: activos, error: errConteo } = await admin
     .from("usuarios")
-    .select("id")
+    .select("id", { count: "exact", head: true })
     .eq("rol", "validador")
     .eq("evento_asignado_id", u.evento_id)
     .eq("activo", true)
-    .gt("vigente_hasta", new Date().toISOString())
-    .maybeSingle();
-  if (yaExiste) {
+    .gt("vigente_hasta", new Date().toISOString());
+  if (errConteo) {
+    return { exito: false, error: "No se pudo verificar los validadores del evento" };
+  }
+  if ((activos ?? 0) >= MAX_VALIDADORES_POR_EVENTO) {
     return {
       exito: false,
-      error: "Este evento ya tiene un validador activo. Desactivalo primero",
+      error:
+        `Este evento ya tiene ${MAX_VALIDADORES_POR_EVENTO} validadores activos (máximo permitido)`,
     };
   }
 

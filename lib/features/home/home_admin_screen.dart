@@ -75,6 +75,10 @@ class HomeAdminScreen extends ConsumerWidget {
   }
 
   Widget _vistaContenido(BuildContext context, MetricasAdmin m) {
+    
+    final esSuperadmin =
+        SessionSnapshot.instance.rol == RolUsuario.superadmin;
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
@@ -123,7 +127,9 @@ class HomeAdminScreen extends ConsumerWidget {
         _AccesoRapido(
           icono: Icons.person_add_alt_1_outlined,
           titulo: 'Alta de usuario',
-          subtitulo: 'Registrar un alumno o administrador',
+          subtitulo: esSuperadmin
+              ? 'Registrar un alumno o administrador'
+              : 'Registrar un alumno',
           onTap: () => context.push(AppRoutes.altaUsuario),
         ),
         const SizedBox(height: 10),
@@ -141,6 +147,19 @@ class HomeAdminScreen extends ConsumerWidget {
           onTap: () => context.push(AppRoutes.adminEventos),
         ),
         const SizedBox(height: 28),
+
+        if (esSuperadmin) ...[
+          Text('Administración del sistema',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          _AccesoRapido(
+            icono: Icons.manage_accounts_outlined,
+            titulo: 'Usuarios',
+            subtitulo: 'Editar, cambiar rol, desactivar o reactivar',
+            onTap: () => context.push(AppRoutes.usuariosSistema),
+          ),
+          const SizedBox(height: 28),
+        ],
 
         Text('Eventos vigentes',
             style: Theme.of(context).textTheme.titleLarge),

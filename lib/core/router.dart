@@ -22,6 +22,7 @@ import '../features/admin/lista_validadores_screen.dart';
 
 import '../features/sistema/lista_usuarios_screen.dart';
 import '../features/sistema/editar_usuario_screen.dart';
+import '../features/sistema/auditoria_screen.dart';
 
 /// Rutas nombradas de la app. Las rutas de cada rol viven bajo un
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
@@ -57,6 +58,7 @@ class AppRoutes {
   // --- Superadmin (prefijo /admin/sistema) ---
   static const String usuariosSistema = '/admin/sistema/usuarios';
   static const String editarUsuario = '/admin/sistema/usuarios/:id';
+  static const String auditoriaSistema = '/admin/sistema/auditoria';
 
   // --- Validador temporal (prefijo /validador) ---
   static const String homeValidador = '/validador';
@@ -300,7 +302,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const PanelAsistenciaScreen(),
     ),
 
-     // ---------------- Superadmin ----------------
+    // ---------------- Superadmin ----------------
     GoRoute(
       path: AppRoutes.usuariosSistema,
       builder: (context, state) => const ListaUsuariosScreen(),
@@ -310,6 +312,10 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => EditarUsuarioScreen(
         usuarioId: state.pathParameters['id']!,
       ),
+    ),
+    GoRoute(
+      path: AppRoutes.auditoriaSistema,
+      builder: (context, state) => const AuditoriaScreen(),
     ),
   ],
 );

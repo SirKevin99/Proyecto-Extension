@@ -158,6 +158,13 @@ class HomeAdminScreen extends ConsumerWidget {
             subtitulo: 'Editar, cambiar rol, desactivar o reactivar',
             onTap: () => context.push(AppRoutes.usuariosSistema),
           ),
+          const SizedBox(height: 10),
+          _AccesoRapido(
+            icono: Icons.manage_search_outlined,
+            titulo: 'Auditoría',
+            subtitulo: 'Quién cambió qué y cuándo',
+            onTap: () => context.push(AppRoutes.auditoriaSistema),
+          ),
           const SizedBox(height: 28),
         ],
 

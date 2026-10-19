@@ -23,6 +23,7 @@ dependencies:
   printing: ^5.15.0
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.4.2
+  file_picker: ^11.0.3
   
 
 dev_dependencies:

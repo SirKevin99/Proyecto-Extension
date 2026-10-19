@@ -112,6 +112,11 @@ class _CargaAlumnosScreenState extends ConsumerState<CargaAlumnosScreen> {
     if (seleccion == null || seleccion.files.isEmpty || !mounted) return;
     final archivo = seleccion.files.first;
     final nombre = archivo.name;
+    if (!nombre.toLowerCase().endsWith('.csv')) {
+      setState(() => _errorArchivo =
+          'Elegí un archivo .csv (el elegido es "$nombre").');
+      return;
+    }
 
     setState(() {
       _leyendo = true;

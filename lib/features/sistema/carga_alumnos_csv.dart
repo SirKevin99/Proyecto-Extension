@@ -76,6 +76,13 @@ List<FilaCsv> leerFilasCsv(Uint8List bytes) {
       'El archivo es demasiado grande (máximo 1 MB)',
     );
   }
+  // Un .xlsx es un ZIP: empieza con "PK".
+  if (bytes.length >= 2 && bytes[0] == 0x50 && bytes[1] == 0x4B) {
+    throw const ArchivoInvalidoException(
+      'El archivo es un libro de Excel (.xlsx). En Excel, usá "Guardar como" '
+      'y elegí el tipo CSV.',
+    );
+  }
 
   final registros = _parsearRegistros(decodificarCsv(bytes));
 

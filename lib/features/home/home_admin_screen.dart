@@ -160,6 +160,13 @@ class HomeAdminScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           _AccesoRapido(
+            icono: Icons.upload_file_outlined,
+            titulo: 'Carga masiva de alumnos',
+            subtitulo: 'Alta de alumnos desde un archivo CSV',
+            onTap: () => context.push(AppRoutes.cargaAlumnos),
+          ),
+          const SizedBox(height: 10),
+          _AccesoRapido(
             icono: Icons.manage_search_outlined,
             titulo: 'Auditoría',
             subtitulo: 'Quién cambió qué y cuándo',

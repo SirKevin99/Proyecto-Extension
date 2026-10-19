@@ -23,6 +23,11 @@
 // Reintentos: si una tanda se reenvía, las filas ya registradas en el
 // detalle no se reprocesan; se devuelve el resultado guardado.
 //
+// Filas con error en la vista previa: la app las envía con
+// "rechazo_previo" para que queden registradas en el lote como
+// rechazadas, sin procesarlas (p. ej. C.I. repetida: todas las filas
+// involucradas son error, no solo la segunda).
+//
 // Body:
 // {
 //   carga_id?: string,         // falta en la primera tanda
@@ -68,6 +73,9 @@ interface Fila {
   horas_requeridas?: string | number;
   accion: Accion;
   reactivar?: boolean;
+  // Error detectado en la vista previa (p. ej. C.I. repetida en el
+  // archivo): la fila se registra como rechazada sin procesarla.
+  rechazo_previo?: string;
 }
 
 interface Entrada {
@@ -284,8 +292,11 @@ Deno.serve(async (req: Request) => {
       }
 
       let r: Resultado;
+      const rechazoPrevio = texto(f.rechazo_previo).slice(0, 300);
       try {
-        r = await procesarFila(ctx, f);
+        r = rechazoPrevio
+          ? resultadoDe(f, "rechazado", rechazoPrevio)
+          : await procesarFila(ctx, f);
       } catch (e) {
         r = resultadoDe(f, "rechazado", `Error inesperado: ${(e as Error).message}`);
       }

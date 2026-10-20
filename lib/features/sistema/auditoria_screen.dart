@@ -447,6 +447,7 @@ const Map<String, String> _campos = {
   'evento_id': 'Evento',
   'activa': 'Activa',
   'facultad_id': 'Facultad (ID)',
+  'facultad': 'Facultad',
   'director_nombre': 'Director/a',
   'director_cargo': 'Cargo del director/a',
   'decano_nombre': 'Decano/a',

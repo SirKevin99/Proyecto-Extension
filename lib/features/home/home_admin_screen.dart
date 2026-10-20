@@ -168,8 +168,8 @@ class HomeAdminScreen extends ConsumerWidget {
           const SizedBox(height: 10),
           _AccesoRapido(
             icono: Icons.school_outlined,
-            titulo: 'Carreras y facultades',
-            subtitulo: 'Crear, editar, desactivar y firmantes del certificado',
+            titulo: 'Carreras y firmantes',
+            subtitulo: 'Firmantes del certificado, carreras nuevas, desactivar',
             onTap: () => context.push(AppRoutes.carrerasSistema),
           ),
           const SizedBox(height: 10),

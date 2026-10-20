@@ -27,6 +27,7 @@ import '../features/sistema/carga_alumnos_screen.dart';
 import '../features/sistema/carreras_screen.dart';
 import '../features/carnet/carnet_screen.dart';
 import '../features/certificados/certificados_screen.dart';
+import '../features/perfil/perfil_screen.dart';
 
 /// Rutas nombradas de la app. Las rutas de cada rol viven bajo un
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
@@ -144,6 +145,7 @@ Set<RolUsuario>? _rolesPermitidos(String ruta) {
   }
   if (_esRuta(ruta, '/validador')) return {RolUsuario.validador};
 
+  // Admin y superadmin no tienen perfil (fase 8): /perfil es solo del alumno.
   if (_esRuta(ruta, AppRoutes.homeEstudiante) ||
       _esRuta(ruta, AppRoutes.listaEventos) ||
       _esRuta(ruta, AppRoutes.historial) ||
@@ -247,9 +249,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.perfil,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Perfil (módulo Perfil)',
-      ),
+      builder: (context, state) => const PerfilScreen(),
     ),
 
     // ---------------- Administrador ----------------
@@ -321,18 +321,3 @@ final GoRouter appRouter = GoRouter(
     ),
   ],
 );
-
-
-/// Pantalla temporal mientras no existen las screens reales.
-class _PlaceholderScreen extends StatelessWidget {
-  final String titulo;
-  const _PlaceholderScreen({required this.titulo});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(titulo)),
-      body: Center(child: Text(titulo)),
-    );
-  }
-}

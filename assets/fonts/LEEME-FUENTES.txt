@@ -1,0 +1,8 @@
+uninorte-serif-*.ttf
+Conversión a TrueType (contornos glyf) de TeX Gyre Pagella 2.x
+(Copyright 2006-2018 B. Jackowski, J. M. Nowacki et al., GUST e-foundry),
+renombrada a "UniNorte Serif" como pide la cláusula 1 de la GUST Font License.
+Motivo de la conversión: el paquete pdf de Dart trabaja con fuentes TrueType.
+Licencia: GUST-FONT-LICENSE.txt (LPPL 1.3c).
+Cambios respecto del original: contornos CFF convertidos a cuadráticos (cu2qu)
+y nombres de la familia cambiados. Sin otros cambios en los glifos.

@@ -25,7 +25,13 @@ class DatosCarnet {
   });
 
   /// Texto del QR: legible con cualquier lector, sin firma ni código.
-  String get textoQr => 'UniNorte - Carnet de alumno\n'
+  /// Empieza con la marca BOM de UTF-8 (U+FEFF, invisible): algunos lectores
+  /// (p. ej. el de los teléfonos Xiaomi) adivinan la codificación y, con
+  /// pocas letras acentuadas, las mostraban como caracteres japoneses
+  /// (prueba 2.4 del paso 7.2). `qr_flutter` 4.1 no permite declarar la
+  /// codificación (ECI) de otra forma.
+  String get textoQr => '\uFEFF'
+      'UniNorte - Carnet de alumno\n'
       'C.I.: $ci\n'
       'Nombre: $nombreCompleto\n'
       'Carrera: $carrera\n'

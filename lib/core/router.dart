@@ -24,6 +24,7 @@ import '../features/sistema/lista_usuarios_screen.dart';
 import '../features/sistema/editar_usuario_screen.dart';
 import '../features/sistema/auditoria_screen.dart';
 import '../features/sistema/carga_alumnos_screen.dart';
+import '../features/sistema/carreras_screen.dart';
 
 /// Rutas nombradas de la app. Las rutas de cada rol viven bajo un
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
@@ -61,6 +62,7 @@ class AppRoutes {
   static const String editarUsuario = '/admin/sistema/usuarios/:id';
   static const String auditoriaSistema = '/admin/sistema/auditoria';
   static const String cargaAlumnos = '/admin/sistema/carga-alumnos';
+  static const String carrerasSistema = '/admin/sistema/carreras';
 
   // --- Validador temporal (prefijo /validador) ---
   static const String homeValidador = '/validador';
@@ -322,6 +324,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.cargaAlumnos,
       builder: (context, state) => const CargaAlumnosScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.carrerasSistema,
+      builder: (context, state) => const CarrerasScreen(),
     ),
   ],
 );

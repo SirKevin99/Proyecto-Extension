@@ -404,27 +404,40 @@ class _EditarUsuarioScreenState extends ConsumerState<EditarUsuarioScreen> {
         ),
       ),
       data: (carreras) {
-        // Si la carrera actual no está en la lista oficial, se obliga a
-        // elegir una (el servidor también lo exige).
-        final enLista = carreras.any((c) => c.nombre == _carrera);
+        // La lista trae solo carreras activas. Si la carrera actual no está
+        // (p. ej. se desactivó, fase 7), se ofrece igual para poder
+        // conservarla: el servidor exige carrera activa solo si cambia
+        // (script 19). Si no es oficial, el servidor lo rechaza al guardar.
         final original = _usuario!.carrera;
+        final originalActiva = carreras.any((c) => c.nombre == original);
+        final valores = {
+          ...carreras.map((c) => c.nombre),
+          if (!originalActiva) original,
+        };
         return DropdownButtonFormField<String>(
-          initialValue: enLista ? _carrera : null,
+          initialValue: valores.contains(_carrera) ? _carrera : null,
           isExpanded: true,
           decoration: InputDecoration(
             labelText: 'Carrera',
             prefixIcon: const Icon(Icons.school_outlined),
-            helperText: carreras.any((c) => c.nombre == original)
+            helperText: originalActiva
                 ? null
-                : 'La carrera actual ("$original") no está en la lista '
-                    'oficial: elegí una',
-            helperMaxLines: 2,
+                : 'La carrera actual no está disponible para nuevas '
+                    'asignaciones (desactivada o fuera de la lista oficial). '
+                    'Podés conservarla o elegir otra.',
+            helperMaxLines: 3,
           ),
           items: [
             for (final c in carreras)
               DropdownMenuItem(
                 value: c.nombre,
                 child: Text(c.nombre, overflow: TextOverflow.ellipsis),
+              ),
+            if (!originalActiva)
+              DropdownMenuItem(
+                value: original,
+                child: Text('$original (actual, no disponible)',
+                    overflow: TextOverflow.ellipsis),
               ),
           ],
           onChanged: _guardando ? null : (v) => setState(() => _carrera = v),

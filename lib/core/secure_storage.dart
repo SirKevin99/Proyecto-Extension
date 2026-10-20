@@ -23,6 +23,7 @@ class SecureStorageService {
   static const String _keyRefreshToken = 'sb_refresh_token';
   static const String _keyUserCi = 'user_ci';
   static const String _keyUserRol = 'user_rol';
+  static const String _keyCarnet = 'carnet_alumno';
 
   // ---------------------------------------------------------------
   // Tokens de sesión
@@ -57,6 +58,17 @@ class SecureStorageService {
   Future<String?> obtenerRol() => _storage.read(key: _keyUserRol);
 
   Future<String?> obtenerCi() => _storage.read(key: _keyUserCi);
+
+  // ---------------------------------------------------------------
+  // Carnet del alumno (fase 7): últimos datos leídos del servidor,
+  // en JSON, para mostrar el carnet sin conexión. Se borra al cerrar
+  // sesión junto con todo lo demás.
+  // ---------------------------------------------------------------
+
+  Future<void> guardarCarnet(String json) =>
+      _storage.write(key: _keyCarnet, value: json);
+
+  Future<String?> obtenerCarnet() => _storage.read(key: _keyCarnet);
 
   // ---------------------------------------------------------------
   // Limpieza total (logout)

@@ -153,14 +153,14 @@ class HomeEstudianteScreen extends ConsumerWidget {
         _AccesoRapido(
           icono: Icons.workspace_premium_outlined,
           titulo: 'Mis certificados',
-          subtitulo: 'Descargá y verificá tus certificados',
+          subtitulo: 'Descargá tus certificados por evento',
           onTap: () => context.push(AppRoutes.certificados),
         ),
         const SizedBox(height: 10),
         _AccesoRapido(
           icono: Icons.qr_code_2,
           titulo: 'Mi carnet QR',
-          subtitulo: 'Presentalo para el Check-In',
+          subtitulo: 'Tu identificación como alumno, también sin conexión',
           onTap: () => context.push(AppRoutes.carnetQr),
         ),
       ],

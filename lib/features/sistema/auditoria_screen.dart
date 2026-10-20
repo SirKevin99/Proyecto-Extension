@@ -386,6 +386,7 @@ IconData _iconoOrigen(String origen) => switch (origen) {
       'eventos' => Icons.event_note_outlined,
       'asistencias' => Icons.how_to_reg_outlined,
       'validadores' => Icons.verified_user_outlined,
+      'carreras' => Icons.school_outlined,
       _ => Icons.history,
     };
 
@@ -444,6 +445,13 @@ const Map<String, String> _campos = {
   'migrado': 'Migrado',
   'usuario_id': 'Usuario',
   'evento_id': 'Evento',
+  'activa': 'Activa',
+  'facultad_id': 'Facultad (ID)',
+  'facultad': 'Facultad',
+  'director_nombre': 'Director/a',
+  'director_cargo': 'Cargo del director/a',
+  'decano_nombre': 'Decano/a',
+  'decano_cargo': 'Cargo del decano/a',
 };
 
 /// Campos que no aportan en un alta (identificadores internos).

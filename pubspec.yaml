@@ -48,6 +48,12 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Fase 7: certificados PDF (imágenes y fuentes del paso 7.0). Las fuentes
+  # las usa solo el paquete pdf, por eso van como assets y no en "fonts:".
+  assets:
+    - assets/certificados/
+    - assets/fonts/
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

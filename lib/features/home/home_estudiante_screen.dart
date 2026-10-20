@@ -153,7 +153,7 @@ class HomeEstudianteScreen extends ConsumerWidget {
         _AccesoRapido(
           icono: Icons.workspace_premium_outlined,
           titulo: 'Mis certificados',
-          subtitulo: 'Descargá y verificá tus certificados',
+          subtitulo: 'Descargá tus certificados por evento',
           onTap: () => context.push(AppRoutes.certificados),
         ),
         const SizedBox(height: 10),

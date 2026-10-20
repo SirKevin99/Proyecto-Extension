@@ -26,6 +26,7 @@ import '../features/sistema/auditoria_screen.dart';
 import '../features/sistema/carga_alumnos_screen.dart';
 import '../features/sistema/carreras_screen.dart';
 import '../features/carnet/carnet_screen.dart';
+import '../features/certificados/certificados_screen.dart';
 
 /// Rutas nombradas de la app. Las rutas de cada rol viven bajo un
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
@@ -35,7 +36,6 @@ class AppRoutes {
   // --- Públicas ---
   static const String login = '/login';
   static const String recuperarPassword = '/recuperar-password';
-  static const String validadorHash = '/validar-certificado';
 
   // --- Alumno ---
   static const String homeEstudiante = '/home-estudiante';
@@ -128,7 +128,6 @@ class AppRouterRefresh extends ChangeNotifier {
 const Set<String> _rutasPublicas = {
   AppRoutes.login,
   AppRoutes.recuperarPassword,
-  AppRoutes.validadorHash, // verificación pública de certificados
 };
 
 bool _esRuta(String ruta, String base) =>
@@ -211,12 +210,6 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.recuperarPassword,
       builder: (context, state) => const RecuperarPasswordScreen(),
     ),
-    GoRoute(
-      path: AppRoutes.validadorHash,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Validador de certificados (módulo Certificados)',
-      ),
-    ),
 
     // ---------------- Alumno ----------------
     GoRoute(
@@ -246,9 +239,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.certificados,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Certificados (módulo Certificados)',
-      ),
+      builder: (context, state) => const CertificadosScreen(),
     ),
     GoRoute(
       path: AppRoutes.carnetQr,

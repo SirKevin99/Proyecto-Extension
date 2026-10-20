@@ -160,7 +160,7 @@ class HomeEstudianteScreen extends ConsumerWidget {
         _AccesoRapido(
           icono: Icons.qr_code_2,
           titulo: 'Mi carnet QR',
-          subtitulo: 'Presentalo para el Check-In',
+          subtitulo: 'Tu identificación como alumno, también sin conexión',
           onTap: () => context.push(AppRoutes.carnetQr),
         ),
       ],

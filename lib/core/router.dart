@@ -25,6 +25,7 @@ import '../features/sistema/editar_usuario_screen.dart';
 import '../features/sistema/auditoria_screen.dart';
 import '../features/sistema/carga_alumnos_screen.dart';
 import '../features/sistema/carreras_screen.dart';
+import '../features/carnet/carnet_screen.dart';
 
 /// Rutas nombradas de la app. Las rutas de cada rol viven bajo un
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
@@ -251,9 +252,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.carnetQr,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Carnet QR (módulo Perfil)',
-      ),
+      builder: (context, state) => const CarnetScreen(),
     ),
     GoRoute(
       path: AppRoutes.perfil,

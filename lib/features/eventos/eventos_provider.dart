@@ -39,6 +39,9 @@ class Evento {
   final String creadoPor;
   final bool activo;
 
+  /// Evento cargado como pasado por el superadmin (fase 8, script 21).
+  final bool cargaHistorica;
+
   const Evento({
     required this.id,
     required this.nombre,
@@ -56,6 +59,7 @@ class Evento {
     required this.toleranciaEntradaMin,
     required this.creadoPor,
     required this.activo,
+    this.cargaHistorica = false,
   });
 
   bool get cuposIlimitados => cuposMaximos == null;
@@ -81,6 +85,7 @@ class Evento {
       toleranciaEntradaMin: map['tolerancia_entrada_min'] as int? ?? 15,
       creadoPor: map['creado_por'] as String,
       activo: map['activo'] as bool? ?? true,
+      cargaHistorica: map['carga_historica'] as bool? ?? false,
     );
   }
 }
@@ -341,6 +346,100 @@ class CrearEventoNotifier extends StateNotifier<AsyncValue<void>> {
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       return false;
+    }
+  }
+
+  /// Carga un evento que ya ocurrió (solo superadmin, fase 8, script 21).
+  /// Queda finalizado, con sus carreras, en una sola transacción.
+  /// La fecha debe ser anterior a hoy y el motivo tener 10+ caracteres
+  /// (lo valida el servidor). Devuelve el id del evento, o null si falló.
+  Future<String?> crearPasado({
+    required String nombre,
+    String? descripcion,
+    required String categoria,
+    String? expositor,
+    required String fecha, // yyyy-MM-dd
+    required String horaInicio, // HH:mm:ss
+    required String horaFin,
+    required String ubicacion,
+    required String modalidad,
+    required int horasOtorgadas,
+    int? cuposMaximos,
+    required int toleranciaEntradaMin,
+    required Set<int> carreraIds,
+    required String motivo,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final id = await supabase.rpc('crear_evento_pasado', params: {
+        'p_nombre': nombre,
+        'p_descripcion': descripcion,
+        'p_categoria': categoria,
+        'p_expositor': expositor,
+        'p_fecha': fecha,
+        'p_hora_inicio': horaInicio,
+        'p_hora_fin': horaFin,
+        'p_ubicacion': ubicacion,
+        'p_modalidad': modalidad,
+        'p_horas_otorgadas': horasOtorgadas,
+        'p_cupos_maximos': cuposMaximos,
+        'p_tolerancia_min': toleranciaEntradaMin,
+        'p_carrera_ids': carreraIds.toList(),
+        'p_motivo': motivo,
+      });
+      state = const AsyncValue.data(null);
+      return id as String;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return null;
+    }
+  }
+
+  /// Corrige un evento cargado como pasado (solo superadmin, script 21).
+  /// Datos, carreras y motivo en una sola transacción. Si cambian la fecha
+  /// o el horario, el servidor mueve la entrada y la salida de los
+  /// asistentes. Devuelve cuántas asistencias se ajustaron, o null si falló.
+  Future<int?> editarPasado({
+    required String eventoId,
+    required String nombre,
+    String? descripcion,
+    required String categoria,
+    String? expositor,
+    required String fecha,
+    required String horaInicio,
+    required String horaFin,
+    required String ubicacion,
+    required String modalidad,
+    required int horasOtorgadas,
+    int? cuposMaximos,
+    required int toleranciaEntradaMin,
+    required Set<int> carreraIds,
+    required String motivo,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final ajustadas = await supabase.rpc('editar_evento_pasado', params: {
+        'p_evento_id': eventoId,
+        'p_nombre': nombre,
+        'p_descripcion': descripcion,
+        'p_categoria': categoria,
+        'p_expositor': expositor,
+        'p_fecha': fecha,
+        'p_hora_inicio': horaInicio,
+        'p_hora_fin': horaFin,
+        'p_ubicacion': ubicacion,
+        'p_modalidad': modalidad,
+        'p_horas_otorgadas': horasOtorgadas,
+        'p_cupos_maximos': cuposMaximos,
+        'p_tolerancia_min': toleranciaEntradaMin,
+        'p_carrera_ids': carreraIds.toList(),
+        'p_motivo': motivo,
+      });
+      state = const AsyncValue.data(null);
+      return (ajustadas as num?)?.toInt() ?? 0;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return null;
     }
   }
 }

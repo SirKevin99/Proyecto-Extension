@@ -24,6 +24,9 @@ class EventoAdmin {
   final int? cuposMaximos; // null = ilimitado
   final int inscriptos;
 
+  /// Cargado como evento pasado por el superadmin (fase 8, script 21).
+  final bool cargaHistorica;
+
   const EventoAdmin({
     required this.id,
     required this.nombre,
@@ -33,9 +36,16 @@ class EventoAdmin {
     required this.estado,
     required this.cuposMaximos,
     required this.inscriptos,
+    this.cargaHistorica = false,
   });
 
   bool get vigente => estado == EstadoEvento.vigente;
+
+  /// La fecha del evento es anterior a hoy (hora del dispositivo).
+  bool get fechaPasada {
+    final ahora = DateTime.now();
+    return fecha.isBefore(DateTime(ahora.year, ahora.month, ahora.day));
+  }
 }
 
 /// Todos los eventos, sin importar su estado.
@@ -46,7 +56,7 @@ final adminEventosProvider =
       .from('eventos')
       .select(
         'id, nombre, fecha, hora_inicio, ubicacion, estado, cupos_maximos, '
-        'inscripciones(id)',
+        'carga_historica, inscripciones(id)',
       )
       .order('fecha', ascending: false);
 
@@ -62,6 +72,7 @@ final adminEventosProvider =
       estado: EstadoEvento.desdeTexto(fila['estado'] as String?),
       cuposMaximos: fila['cupos_maximos'] as int?,
       inscriptos: inscripciones.length,
+      cargaHistorica: fila['carga_historica'] as bool? ?? false,
     );
   }).toList();
 });
@@ -74,4 +85,16 @@ Future<void> finalizarEvento(String eventoId) async {
 
 Future<void> cancelarEvento(String eventoId) async {
   await supabase.rpc('cancelar_evento', params: {'p_evento_id': eventoId});
+}
+
+/// Reactiva un evento cancelado con fecha pasada como finalizado
+/// (solo superadmin, fase 8, script 21). El servidor emite los
+/// certificados de quienes tienen entrada y salida. Devuelve cuántos
+/// asistentes tienen la asistencia completa.
+Future<int> reactivarEventoCancelado(String eventoId, String motivo) async {
+  final completos = await supabase.rpc('reactivar_evento_cancelado', params: {
+    'p_evento_id': eventoId,
+    'p_motivo': motivo,
+  });
+  return (completos as num?)?.toInt() ?? 0;
 }

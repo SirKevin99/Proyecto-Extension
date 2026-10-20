@@ -174,6 +174,13 @@ class HomeAdminScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           _AccesoRapido(
+            icono: Icons.history_edu_outlined,
+            titulo: 'Cargar evento pasado',
+            subtitulo: 'Eventos que ocurrieron antes del sistema, ya finalizados',
+            onTap: () => context.push(AppRoutes.cargarEventoPasado),
+          ),
+          const SizedBox(height: 10),
+          _AccesoRapido(
             icono: Icons.manage_search_outlined,
             titulo: 'Auditoría',
             subtitulo: 'Quién cambió qué y cuándo',

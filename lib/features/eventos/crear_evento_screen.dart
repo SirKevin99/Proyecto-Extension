@@ -11,26 +11,50 @@ import 'admin_eventos_provider.dart';
 import 'eventos_provider.dart';
 
 /// Carga el evento y sus carreras, y abre el formulario en modo edición.
+/// Con [esPasado], corrige un evento cargado como pasado (solo superadmin,
+/// fase 8).
 class EditarEventoScreen extends ConsumerWidget {
   final String eventoId;
-  const EditarEventoScreen({super.key, required this.eventoId});
+  final bool esPasado;
+  const EditarEventoScreen({
+    super.key,
+    required this.eventoId,
+    this.esPasado = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventoAsync = ref.watch(eventoPorIdProvider(eventoId));
     final carrerasAsync = ref.watch(carrerasDeEventoProvider(eventoId));
     final cargando = eventoAsync.isLoading || carrerasAsync.isLoading;
+    final titulo = esPasado ? 'Corregir evento pasado' : 'Editar evento';
 
     if (!cargando && eventoAsync.hasValue && carrerasAsync.hasValue) {
+      final evento = eventoAsync.requireValue;
+      if (esPasado && !evento.cargaHistorica) {
+        return Scaffold(
+          appBar: AppBar(title: Text(titulo)),
+          body: const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Solo se pueden corregir los eventos cargados como pasados.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        );
+      }
       return CrearEventoScreen(
-        evento: eventoAsync.requireValue,
+        evento: evento,
         carrerasIniciales: carrerasAsync.requireValue,
+        esPasado: esPasado,
       );
     }
 
     if (!cargando && (eventoAsync.hasError || carrerasAsync.hasError)) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Editar evento')),
+        appBar: AppBar(title: Text(titulo)),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -51,23 +75,29 @@ class EditarEventoScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Editar evento')),
+      appBar: AppBar(title: Text(titulo)),
       body: const Center(child: CircularProgressIndicator()),
     );
   }
 }
 
 /// Formulario de evento. Con [evento] nulo crea; con valor, edita.
+/// Con [esPasado] (solo superadmin, fase 8) carga o corrige un evento que
+/// ya ocurrió: fecha anterior a hoy, motivo obligatorio y resumen antes de
+/// guardar; el evento queda finalizado.
 class CrearEventoScreen extends ConsumerStatefulWidget {
   final Evento? evento;
 
   /// Ids de las carreras habilitadas al abrir la edición.
   final Set<int> carrerasIniciales;
 
+  final bool esPasado;
+
   const CrearEventoScreen({
     super.key,
     this.evento,
     this.carrerasIniciales = const {},
+    this.esPasado = false,
   });
 
   @override
@@ -84,6 +114,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
   final _horasController = TextEditingController();
   final _cuposController = TextEditingController();
   final _toleranciaController = TextEditingController(text: '15');
+  final _motivoController = TextEditingController();
 
   String? _categoria;
   String _modalidad = modalidadesEvento.first;
@@ -96,6 +127,12 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
   bool _intentoEnviar = false;
 
   bool get _editando => widget.evento != null;
+  bool get _pasado => widget.esPasado;
+
+  static DateTime get _hoy {
+    final ahora = DateTime.now();
+    return DateTime(ahora.year, ahora.month, ahora.day);
+  }
 
   @override
   void initState() {
@@ -132,6 +169,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
     _horasController.dispose();
     _cuposController.dispose();
     _toleranciaController.dispose();
+    _motivoController.dispose();
     super.dispose();
   }
 
@@ -151,6 +189,21 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
   int _minutos(TimeOfDay h) => h.hour * 60 + h.minute;
 
   Future<void> _elegirFecha() async {
+    if (_pasado) {
+      // Evento pasado: sin tope de antigüedad, hasta ayer.
+      final ayer = _hoy.subtract(const Duration(days: 1));
+      final inicial =
+          (_fecha != null && _fecha!.isBefore(_hoy)) ? _fecha! : ayer;
+      final elegida = await showDatePicker(
+        context: context,
+        initialDate: inicial,
+        firstDate: DateTime(1950),
+        lastDate: ayer,
+      );
+      if (elegida != null) setState(() => _fecha = elegida);
+      return;
+    }
+
     final hoy = DateTime.now();
     final hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);
     // Al editar, la fecha actual puede ser anterior a hoy: el picker
@@ -195,8 +248,17 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
     return null;
   }
 
+  String? get _errorFecha {
+    if (_fecha == null) return _intentoEnviar ? 'Elegí la fecha' : null;
+    if (_pasado && !_fecha!.isBefore(_hoy)) {
+      return 'La fecha debe ser anterior a hoy';
+    }
+    return null;
+  }
+
   bool get _selectoresValidos =>
       _categoria != null &&
+      _errorFecha == null &&
       _fecha != null &&
       _horaInicio != null &&
       _horaFin != null &&
@@ -222,6 +284,15 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
     final cupos = _cupoIlimitado ? null : int.parse(_cuposController.text.trim());
     final tolerancia = int.parse(_toleranciaController.text.trim());
     final carreras = Set<int>.of(_carrerasSel);
+
+    if (_pasado) {
+      await _guardarPasado(
+        cupos: cupos,
+        tolerancia: tolerancia,
+        carreras: carreras,
+      );
+      return;
+    }
 
     final exito = _editando
         ? await notifier.editar(
@@ -279,6 +350,147 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
     router.pop();
   }
 
+  /// Evento pasado (fase 8): resumen de confirmación y guardado con motivo.
+  Future<void> _guardarPasado({
+    required int? cupos,
+    required int tolerancia,
+    required Set<int> carreras,
+  }) async {
+    final confirmado = await _confirmarResumen(cupos, carreras);
+    if (confirmado != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    final notifier = ref.read(crearEventoNotifierProvider.notifier);
+    final motivo = _motivoController.text.trim();
+
+    final String mensaje;
+    if (_editando) {
+      final ajustadas = await notifier.editarPasado(
+        eventoId: widget.evento!.id,
+        nombre: _nombreController.text.trim(),
+        descripcion: _vacioSiNulo(_descripcionController.text),
+        categoria: _categoria!,
+        expositor: _vacioSiNulo(_expositorController.text),
+        fecha: _fmtFechaDb(_fecha!),
+        horaInicio: _fmtHoraDb(_horaInicio!),
+        horaFin: _fmtHoraDb(_horaFin!),
+        ubicacion: _ubicacionController.text.trim(),
+        modalidad: _modalidad,
+        horasOtorgadas: int.parse(_horasController.text.trim()),
+        cuposMaximos: cupos,
+        toleranciaEntradaMin: tolerancia,
+        carreraIds: carreras,
+        motivo: motivo,
+      );
+      if (ajustadas == null) return; // el ref.listen de build muestra el error
+      mensaje = ajustadas > 0
+          ? 'Evento corregido. Se ajustó la entrada y la salida de '
+              '$ajustadas ${ajustadas == 1 ? 'asistente' : 'asistentes'} '
+              'al nuevo horario'
+          : 'Evento corregido correctamente';
+    } else {
+      final id = await notifier.crearPasado(
+        nombre: _nombreController.text.trim(),
+        descripcion: _vacioSiNulo(_descripcionController.text),
+        categoria: _categoria!,
+        expositor: _vacioSiNulo(_expositorController.text),
+        fecha: _fmtFechaDb(_fecha!),
+        horaInicio: _fmtHoraDb(_horaInicio!),
+        horaFin: _fmtHoraDb(_horaFin!),
+        ubicacion: _ubicacionController.text.trim(),
+        modalidad: _modalidad,
+        horasOtorgadas: int.parse(_horasController.text.trim()),
+        cuposMaximos: cupos,
+        toleranciaEntradaMin: tolerancia,
+        carreraIds: carreras,
+        motivo: motivo,
+      );
+      if (id == null) return;
+      mensaje = 'Evento pasado cargado como finalizado';
+    }
+
+    if (!mounted) return;
+    ref.invalidate(adminEventosProvider);
+    if (_editando) {
+      ref.invalidate(eventoPorIdProvider(widget.evento!.id));
+      ref.invalidate(carrerasDeEventoProvider(widget.evento!.id));
+    }
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(mensaje),
+        backgroundColor: UniNorteColors.exito,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    router.pop();
+  }
+
+  Future<bool?> _confirmarResumen(int? cupos, Set<int> carreras) {
+    final activas = ref.read(carrerasProvider).valueOrNull ?? const <Carrera>[];
+    final nombres = activas
+        .where((c) => carreras.contains(c.id))
+        .map((c) => c.nombre)
+        .toList();
+    final otras = carreras.length - nombres.length;
+    final textoCarreras = [
+      if (nombres.length == activas.length && activas.isNotEmpty)
+        'Todas las carreras'
+      else
+        ...nombres,
+      if (otras > 0)
+        '$otras ${otras == 1 ? 'carrera desactivada' : 'carreras desactivadas'}',
+    ].join(', ');
+    final fecha =
+        DateFormat("EEEE d 'de' MMMM 'de' yyyy", 'es').format(_fecha!);
+
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+            _editando ? 'Confirmar corrección' : 'Confirmar evento pasado'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _editando
+                    ? 'Revisá los datos. El evento sigue finalizado y la '
+                        'corrección queda registrada en la auditoría.'
+                    : 'Revisá los datos. El evento se creará como finalizado '
+                        'y la carga queda registrada en la auditoría.',
+              ),
+              const SizedBox(height: 12),
+              _FilaResumen('Evento', _nombreController.text.trim()),
+              _FilaResumen('Fecha', fecha),
+              _FilaResumen(
+                'Horario',
+                '${_fmtHoraUi(_horaInicio!)} a ${_fmtHoraUi(_horaFin!)}',
+              ),
+              _FilaResumen('Ubicación', _ubicacionController.text.trim()),
+              _FilaResumen('Horas otorgadas', _horasController.text.trim()),
+              _FilaResumen('Cupo', cupos == null ? 'Sin límite' : '$cupos'),
+              _FilaResumen('Carreras', textoCarreras),
+              _FilaResumen('Motivo', _motivoController.text.trim()),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _mensajeError(Object error) {
     // Los mensajes de las RPC ya vienen listos para el usuario.
     if (error is PostgrestException && error.code == 'P0001') {
@@ -324,6 +536,9 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
             final todas = ids.isNotEmpty && marcadas == ids.length;
             final bool? valorTodas =
                 todas ? true : (marcadas == 0 ? false : null);
+            // Carreras que el evento ya tenía y hoy están desactivadas: no
+            // figuran en la lista, pero se conservan al guardar.
+            final otras = _carrerasSel.difference(ids).length;
 
             return Container(
               decoration: BoxDecoration(
@@ -368,6 +583,15 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
                         }
                       }),
                     ),
+                  if (_pasado && otras > 0)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                      child: Text(
+                        'El evento también está habilitado para $otras '
+                        '${otras == 1 ? 'carrera desactivada, que se conserva' : 'carreras desactivadas, que se conservan'}.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
                 ],
               ),
             );
@@ -399,14 +623,22 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
 
     final formatoFecha = DateFormat('EEEE dd MMMM yyyy', 'es');
 
+    final titulo = _pasado
+        ? (_editando ? 'Corregir evento pasado' : 'Cargar evento pasado')
+        : (_editando ? 'Editar evento' : 'Nuevo evento');
+
     return Scaffold(
-      appBar: AppBar(title: Text(_editando ? 'Editar evento' : 'Nuevo evento')),
+      appBar: AppBar(title: Text(titulo)),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              if (_pasado) ...[
+                _AvisoPasado(editando: _editando),
+                const SizedBox(height: 16),
+              ],
               TextFormField(
                 controller: _nombreController,
                 textCapitalization: TextCapitalization.sentences,
@@ -455,9 +687,7 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
                 icono: Icons.calendar_today_outlined,
                 etiqueta: 'Fecha',
                 valor: _fecha == null ? null : formatoFecha.format(_fecha!),
-                error: _intentoEnviar && _fecha == null
-                    ? 'Elegí la fecha'
-                    : null,
+                error: _errorFecha,
                 onTap: _elegirFecha,
               ),
               const SizedBox(height: 16),
@@ -495,11 +725,14 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
               TextFormField(
                 controller: _toleranciaController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Tolerancia de entrada (minutos)',
-                  helperText:
-                      'Tiempo después del inicio en que aún se puede marcar la entrada',
-                  prefixIcon: Icon(Icons.hourglass_bottom_outlined),
+                  helperText: _pasado
+                      ? 'Dato del evento; en un evento pasado no se usa para '
+                          'registrar asistencia'
+                      : 'Tiempo después del inicio en que aún se puede marcar la entrada',
+                  helperMaxLines: 2,
+                  prefixIcon: const Icon(Icons.hourglass_bottom_outlined),
                 ),
                 validator: (v) {
                   final n = int.tryParse(v?.trim() ?? '');
@@ -595,6 +828,27 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
               ),
               const SizedBox(height: 24),
 
+              if (_pasado) ...[
+                TextFormField(
+                  controller: _motivoController,
+                  maxLines: 3,
+                  maxLength: 500,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: _editando
+                        ? 'Motivo de la corrección'
+                        : 'Motivo de la carga',
+                    helperText: 'Queda registrado en la auditoría',
+                    alignLabelWithHint: true,
+                    prefixIcon: const Icon(Icons.edit_note_outlined),
+                  ),
+                  validator: (v) => (v == null || v.trim().length < 10)
+                      ? 'Indicá el motivo (mínimo 10 caracteres)'
+                      : null,
+                ),
+                const SizedBox(height: 16),
+              ],
+
               ElevatedButton(
                 onPressed: guardando ? null : _guardar,
                 child: guardando
@@ -606,10 +860,82 @@ class _CrearEventoScreenState extends ConsumerState<CrearEventoScreen> {
                           color: UniNorteColors.azulMarino,
                         ),
                       )
-                    : Text(_editando ? 'Guardar cambios' : 'Crear evento'),
+                    : Text(_pasado
+                        ? (_editando
+                            ? 'Guardar corrección'
+                            : 'Cargar evento pasado')
+                        : (_editando ? 'Guardar cambios' : 'Crear evento')),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Explicación al cargar o corregir un evento pasado (fase 8).
+class _AvisoPasado extends StatelessWidget {
+  final bool editando;
+  const _AvisoPasado({required this.editando});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: UniNorteColors.azulMarino.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.history_edu_outlined,
+              color: UniNorteColors.azulMarino, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              editando
+                  ? 'Corregís un evento cargado como pasado. Si cambiás la '
+                      'fecha o el horario, la entrada y la salida de sus '
+                      'asistentes pasan al nuevo inicio y al nuevo fin.'
+                  : 'Cargás un evento que ya ocurrió y no estaba en el '
+                      'sistema. Queda finalizado; la fecha debe ser anterior '
+                      'a hoy.',
+              style: const TextStyle(color: UniNorteColors.textoPrimario),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Fila del resumen de confirmación de un evento pasado.
+class _FilaResumen extends StatelessWidget {
+  final String etiqueta;
+  final String valor;
+  const _FilaResumen(this.etiqueta, this.valor);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: '$etiqueta: ',
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: UniNorteColors.textoPrimario,
+              ),
+            ),
+            TextSpan(
+              text: valor.isEmpty ? '—' : valor,
+              style: const TextStyle(color: UniNorteColors.textoSecundario),
+            ),
+          ],
         ),
       ),
     );

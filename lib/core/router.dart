@@ -65,6 +65,8 @@ class AppRoutes {
   static const String auditoriaSistema = '/admin/sistema/auditoria';
   static const String cargaAlumnos = '/admin/sistema/carga-alumnos';
   static const String carrerasSistema = '/admin/sistema/carreras';
+  static const String cargarEventoPasado = '/admin/sistema/eventos/pasado';
+  static const String editarEventoPasado = '/admin/sistema/eventos/:id/corregir';
 
   // --- Validador temporal (prefijo /validador) ---
   static const String homeValidador = '/validador';
@@ -75,6 +77,8 @@ class AppRoutes {
   static String gestionAsistenciaPath(String id) => '/admin/eventos/$id/asistencia';
   static String editarEventoPath(String id) => '/admin/eventos/$id/editar';
   static String editarUsuarioPath(String id) => '/admin/sistema/usuarios/$id';
+  static String editarEventoPasadoPath(String id) =>
+      '/admin/sistema/eventos/$id/corregir';
 }
 
 /// Roles válidos, según el CHECK constraint de la tabla `usuarios`.
@@ -318,6 +322,18 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.carrerasSistema,
       builder: (context, state) => const CarrerasScreen(),
+    ),
+    // Eventos pasados (fase 8): mismo formulario que "Nuevo evento".
+    GoRoute(
+      path: AppRoutes.cargarEventoPasado,
+      builder: (context, state) => const CrearEventoScreen(esPasado: true),
+    ),
+    GoRoute(
+      path: AppRoutes.editarEventoPasado,
+      builder: (context, state) => EditarEventoScreen(
+        eventoId: state.pathParameters['id']!,
+        esPasado: true,
+      ),
     ),
   ],
 );

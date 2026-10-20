@@ -567,6 +567,9 @@ class _FormCarreraDialogState extends State<_FormCarreraDialog> {
     final renombra = c != null && nombre != c.nombre;
 
     if (c != null && renombra) {
+      final alumnos = c.alumnosActivos == 1
+          ? '1 alumno activo'
+          : '${c.alumnosActivos} alumnos activos';
       final ok = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -574,9 +577,9 @@ class _FormCarreraDialogState extends State<_FormCarreraDialog> {
           content: Text(
             '"${c.nombre}" pasará a llamarse "$nombre".\n\n'
             'Todos los usuarios que tienen esta carrera '
-            '(${c.alumnosActivos} alumnos activos, además de los inactivos '
-            'y administradores) quedarán con el nombre nuevo. Los eventos '
-            'habilitados no cambian.',
+            '($alumnos, '
+            'además de los inactivos y administradores) quedarán con el '
+            'nombre nuevo. Los eventos habilitados no cambian.',
           ),
           actions: [
             TextButton(

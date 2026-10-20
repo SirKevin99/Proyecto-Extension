@@ -4,7 +4,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/supabase_client.dart';
 
 /// Filtro por origen de la auditoría (fase 5, solo superadmin).
-enum OrigenAuditoria { todos, usuarios, eventos, asistencias, validadores }
+/// 'carreras' incluye carreras y facultades (fase 7, script 19).
+enum OrigenAuditoria {
+  todos,
+  usuarios,
+  eventos,
+  asistencias,
+  validadores,
+  carreras,
+}
 
 extension OrigenAuditoriaX on OrigenAuditoria {
   /// Valor que espera listar_auditoria (NULL = todos).
@@ -16,12 +24,13 @@ extension OrigenAuditoriaX on OrigenAuditoria {
         OrigenAuditoria.eventos => 'Eventos',
         OrigenAuditoria.asistencias => 'Asistencias',
         OrigenAuditoria.validadores => 'Validadores',
+        OrigenAuditoria.carreras => 'Carreras',
       };
 }
 
 /// Una fila de listar_auditoria (script 17).
 class RegistroAuditoria {
-  final String origen; // usuarios | eventos | asistencias | validadores
+  final String origen; // usuarios | eventos | asistencias | validadores | carreras
   final String accion; // alta | modificacion | baja | correccion | cambio_horario | restablecer_clave
   final String? entidad; // nombre del usuario, evento o "alumno · evento"
   final Map<String, dynamic> detalle;

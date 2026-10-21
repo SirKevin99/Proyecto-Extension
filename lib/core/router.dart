@@ -27,6 +27,8 @@ import '../features/sistema/carga_alumnos_screen.dart';
 import '../features/sistema/carreras_screen.dart';
 import '../features/carnet/carnet_screen.dart';
 import '../features/certificados/certificados_screen.dart';
+import '../features/perfil/perfil_screen.dart';
+import '../features/sistema/asistentes_pasado_screen.dart';
 
 /// Rutas nombradas de la app. Las rutas de cada rol viven bajo un
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
@@ -64,6 +66,10 @@ class AppRoutes {
   static const String auditoriaSistema = '/admin/sistema/auditoria';
   static const String cargaAlumnos = '/admin/sistema/carga-alumnos';
   static const String carrerasSistema = '/admin/sistema/carreras';
+  static const String cargarEventoPasado = '/admin/sistema/eventos/pasado';
+  static const String editarEventoPasado = '/admin/sistema/eventos/:id/corregir';
+  static const String asistentesEventoPasado =
+      '/admin/sistema/eventos/:id/asistentes';
 
   // --- Validador temporal (prefijo /validador) ---
   static const String homeValidador = '/validador';
@@ -74,6 +80,10 @@ class AppRoutes {
   static String gestionAsistenciaPath(String id) => '/admin/eventos/$id/asistencia';
   static String editarEventoPath(String id) => '/admin/eventos/$id/editar';
   static String editarUsuarioPath(String id) => '/admin/sistema/usuarios/$id';
+  static String editarEventoPasadoPath(String id) =>
+      '/admin/sistema/eventos/$id/corregir';
+  static String asistentesEventoPasadoPath(String id) =>
+      '/admin/sistema/eventos/$id/asistentes';
 }
 
 /// Roles válidos, según el CHECK constraint de la tabla `usuarios`.
@@ -144,6 +154,7 @@ Set<RolUsuario>? _rolesPermitidos(String ruta) {
   }
   if (_esRuta(ruta, '/validador')) return {RolUsuario.validador};
 
+  // Admin y superadmin no tienen perfil (fase 8): /perfil es solo del alumno.
   if (_esRuta(ruta, AppRoutes.homeEstudiante) ||
       _esRuta(ruta, AppRoutes.listaEventos) ||
       _esRuta(ruta, AppRoutes.historial) ||
@@ -247,9 +258,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.perfil,
-      builder: (context, state) => const _PlaceholderScreen(
-        titulo: 'Perfil (módulo Perfil)',
-      ),
+      builder: (context, state) => const PerfilScreen(),
     ),
 
     // ---------------- Administrador ----------------
@@ -319,20 +328,24 @@ final GoRouter appRouter = GoRouter(
       path: AppRoutes.carrerasSistema,
       builder: (context, state) => const CarrerasScreen(),
     ),
+    // Eventos pasados (fase 8): mismo formulario que "Nuevo evento".
+    GoRoute(
+      path: AppRoutes.cargarEventoPasado,
+      builder: (context, state) => const CrearEventoScreen(esPasado: true),
+    ),
+    GoRoute(
+      path: AppRoutes.editarEventoPasado,
+      builder: (context, state) => EditarEventoScreen(
+        eventoId: state.pathParameters['id']!,
+        esPasado: true,
+      ),
+    ),
+    // Asistentes de un evento pasado (fase 8, paso 8.3).
+    GoRoute(
+      path: AppRoutes.asistentesEventoPasado,
+      builder: (context, state) => AsistentesPasadoScreen(
+        eventoId: state.pathParameters['id']!,
+      ),
+    ),
   ],
 );
-
-
-/// Pantalla temporal mientras no existen las screens reales.
-class _PlaceholderScreen extends StatelessWidget {
-  final String titulo;
-  const _PlaceholderScreen({required this.titulo});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(titulo)),
-      body: Center(child: Text(titulo)),
-    );
-  }
-}

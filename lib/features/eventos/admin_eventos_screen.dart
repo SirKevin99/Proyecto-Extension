@@ -39,8 +39,21 @@ class _AdminEventosScreenState extends ConsumerState<AdminEventosScreen> {
   Widget build(BuildContext context) {
     final async = ref.watch(adminEventosProvider);
 
+    final esSuperadmin =
+        SessionSnapshot.instance.rol == RolUsuario.superadmin;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Todos los eventos')),
+      appBar: AppBar(
+        title: const Text('Todos los eventos'),
+        actions: [
+          if (esSuperadmin)
+            IconButton(
+              icon: const Icon(Icons.history_edu_outlined),
+              tooltip: 'Cargar evento pasado',
+              onPressed: () => context.push(AppRoutes.cargarEventoPasado),
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push(AppRoutes.crearEvento),
         backgroundColor: UniNorteColors.dorado,
@@ -138,11 +151,83 @@ class _AdminEventosScreenState extends ConsumerState<AdminEventosScreen> {
   }
 }
 
-enum _Accion { editar, finalizar, cancelar }
+enum _Accion { editar, finalizar, cancelar, corregirPasado, reactivar }
 
 class _TarjetaEventoAdmin extends ConsumerWidget {
   final EventoAdmin evento;
   const _TarjetaEventoAdmin({required this.evento});
+
+  /// Acciones disponibles según el estado del evento y el rol.
+  /// Fase 8 (solo superadmin): corregir eventos cargados como pasados y
+  /// reactivar cancelados con fecha pasada.
+  List<(_Accion, String)> _acciones() {
+    final esSuperadmin =
+        SessionSnapshot.instance.rol == RolUsuario.superadmin;
+    return [
+      if (evento.vigente) ...[
+        (_Accion.editar, 'Editar evento'),
+        (_Accion.finalizar, 'Finalizar evento'),
+        (_Accion.cancelar, 'Cancelar evento'),
+      ],
+      if (esSuperadmin &&
+          evento.estado == EstadoEvento.finalizado &&
+          evento.cargaHistorica)
+        (_Accion.corregirPasado, 'Corregir evento pasado'),
+      if (esSuperadmin &&
+          evento.estado == EstadoEvento.cancelado &&
+          evento.fechaPasada)
+        (_Accion.reactivar, 'Reactivar como finalizado'),
+    ];
+  }
+
+  void _ejecutar(BuildContext context, WidgetRef ref, _Accion a) {
+    switch (a) {
+      case _Accion.editar:
+        context.push(AppRoutes.editarEventoPath(evento.id));
+      case _Accion.corregirPasado:
+        context.push(AppRoutes.editarEventoPasadoPath(evento.id));
+      case _Accion.reactivar:
+        _reactivar(context, ref);
+      case _Accion.finalizar:
+      case _Accion.cancelar:
+        _confirmarYEjecutar(context, ref, a);
+    }
+  }
+
+  Future<void> _reactivar(BuildContext context, WidgetRef ref) async {
+    final motivo = await showDialog<String>(
+      context: context,
+      builder: (_) => _DialogoReactivar(nombre: evento.nombre),
+    );
+    if (motivo == null) return;
+
+    try {
+      final completos = await reactivarEventoCancelado(evento.id, motivo);
+      ref.invalidate(adminEventosProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              completos == 0
+                  ? 'Evento reactivado como finalizado. Ningún asistente '
+                      'tenía entrada y salida registradas.'
+                  : 'Evento reactivado como finalizado. $completos '
+                      '${completos == 1 ? 'asistente suma' : 'asistentes suman'} '
+                      'horas y certificado.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      final mensaje = e is PostgrestException
+          ? e.message
+          : 'No se pudo reactivar el evento';
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(mensaje)));
+      }
+    }
+  }
 
   Future<void> _confirmarYEjecutar(
     BuildContext context,
@@ -216,6 +301,7 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
     final ocupacion = (max == null || max == 0)
         ? 0.0
         : (evento.inscriptos / max).clamp(0, 1).toDouble();
+    final acciones = _acciones();
 
     return Card(
       child: Padding(
@@ -235,34 +321,22 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 _EtiquetaEstado(evento.estado),
-                if (evento.vigente)
+                if (acciones.isNotEmpty)
                   PopupMenuButton<_Accion>(
                     tooltip: 'Más acciones',
                     padding: EdgeInsets.zero,
-                    onSelected: (a) {
-                      if (a == _Accion.editar) {
-                        context.push(AppRoutes.editarEventoPath(evento.id));
-                      } else {
-                        _confirmarYEjecutar(context, ref, a);
-                      }
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: _Accion.editar,
-                        child: Text('Editar evento'),
-                      ),
-                      PopupMenuItem(
-                        value: _Accion.finalizar,
-                        child: Text('Finalizar evento'),
-                      ),
-                      PopupMenuItem(
-                        value: _Accion.cancelar,
-                        child: Text('Cancelar evento'),
-                      ),
+                    onSelected: (a) => _ejecutar(context, ref, a),
+                    itemBuilder: (_) => [
+                      for (final (accion, texto) in acciones)
+                        PopupMenuItem(value: accion, child: Text(texto)),
                     ],
                   ),
               ],
             ),
+            if (evento.cargaHistorica) ...[
+              const SizedBox(height: 6),
+              const _EtiquetaPasado(),
+            ],
             const SizedBox(height: 6),
             Row(
               children: [
@@ -331,18 +405,138 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
             ],
 
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () =>
-                    context.push(AppRoutes.gestionAsistenciaPath(evento.id)),
-                icon: const Icon(Icons.fact_check_outlined, size: 18),
-                label: const Text('Asistencia'),
-              ),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      context.push(AppRoutes.gestionAsistenciaPath(evento.id)),
+                  icon: const Icon(Icons.fact_check_outlined, size: 18),
+                  label: const Text('Asistencia'),
+                ),
+                // Fase 8, paso 8.3: asistentes de los eventos pasados.
+                if (evento.cargaHistorica &&
+                    evento.estado == EstadoEvento.finalizado &&
+                    SessionSnapshot.instance.rol == RolUsuario.superadmin)
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await context.push(
+                          AppRoutes.asistentesEventoPasadoPath(evento.id));
+                      ref.invalidate(adminEventosProvider);
+                    },
+                    icon: const Icon(Icons.group_add_outlined, size: 18),
+                    label: const Text('Cargar asistentes'),
+                  ),
+              ],
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Marca de los eventos cargados como pasados (fase 8).
+class _EtiquetaPasado extends StatelessWidget {
+  const _EtiquetaPasado();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: UniNorteColors.dorado.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.history_edu_outlined,
+              size: 14, color: UniNorteColors.azulMarino),
+          SizedBox(width: 4),
+          Text(
+            'Cargado como evento pasado',
+            style: TextStyle(
+              color: UniNorteColors.azulMarino,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pide el motivo para reactivar un evento cancelado (fase 8).
+/// Devuelve el motivo, o null si se cancela.
+class _DialogoReactivar extends StatefulWidget {
+  final String nombre;
+  const _DialogoReactivar({required this.nombre});
+
+  @override
+  State<_DialogoReactivar> createState() => _DialogoReactivarState();
+}
+
+class _DialogoReactivarState extends State<_DialogoReactivar> {
+  final _formKey = GlobalKey<FormState>();
+  final _motivo = TextEditingController();
+
+  @override
+  void dispose() {
+    _motivo.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Reactivar evento'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '"${widget.nombre}" pasará de cancelado a finalizado. Los '
+              'asistentes con entrada y salida registradas sumarán sus horas '
+              'y recibirán el certificado.',
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _motivo,
+              autofocus: true,
+              maxLines: 3,
+              maxLength: 500,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Motivo',
+                helperText: 'Queda registrado en la auditoría',
+                alignLabelWithHint: true,
+              ),
+              validator: (v) => (v == null || v.trim().length < 10)
+                  ? 'Indicá el motivo (mínimo 10 caracteres)'
+                  : null,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Volver'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              Navigator.pop(context, _motivo.text.trim());
+            }
+          },
+          child: const Text('Reactivar'),
+        ),
+      ],
     );
   }
 }

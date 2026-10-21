@@ -397,6 +397,9 @@ String _accionLegible(String accion) => switch (accion) {
       'correccion' => 'Corrección de asistencia',
       'cambio_horario' => 'Cambio de horario',
       'restablecer_clave' => 'Restablecimiento de clave',
+      'carga_evento_pasado' => 'Carga de evento pasado',
+      'edicion_evento_pasado' => 'Corrección de evento pasado',
+      'reactivacion_evento' => 'Reactivación de evento',
       _ => accion,
     };
 
@@ -452,6 +455,8 @@ const Map<String, String> _campos = {
   'director_cargo': 'Cargo del director/a',
   'decano_nombre': 'Decano/a',
   'decano_cargo': 'Cargo del decano/a',
+  'carga_historica': 'Cargado como evento pasado',
+  'carreras': 'Carreras habilitadas',
 };
 
 /// Campos que no aportan en un alta (identificadores internos).
@@ -472,6 +477,8 @@ String _valor(dynamic v, {String? campo}) {
   if (v == null) return '—';
   if (v is bool) return v ? 'Sí' : 'No';
   if (v is num) return '$v';
+  // Listas (p. ej. las carreras habilitadas de un evento, script 21)
+  if (v is List) return v.isEmpty ? '—' : v.join(', ');
   final s = v.toString();
   if (campo == 'rol') return _rolLegible(s);
   if (campo == 'hash_certificado') return 'emitido';
@@ -516,11 +523,13 @@ List<(String, String)> _lineasDetalle(RegistroAuditoria r) {
       lineas.add(('Evento', _valor(d['evento'])));
     default:
       // Cambios generales: { campo: { antes, despues } }
+      // La carga de un evento pasado (script 21) es un alta.
+      final esAlta = r.accion == 'alta' || r.accion == 'carga_evento_pasado';
       final claves = d.keys.toList()..sort();
       for (final clave in claves) {
         final c = d[clave];
         if (c is! Map) continue;
-        if (r.accion == 'alta') {
+        if (esAlta) {
           if (_omitirEnAlta.contains(clave) || c['despues'] == null) continue;
           lineas.add((_etiquetaCampo(clave), _valor(c['despues'], campo: clave)));
         } else if (r.accion == 'baja') {

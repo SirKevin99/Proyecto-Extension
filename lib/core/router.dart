@@ -28,6 +28,7 @@ import '../features/sistema/carreras_screen.dart';
 import '../features/carnet/carnet_screen.dart';
 import '../features/certificados/certificados_screen.dart';
 import '../features/perfil/perfil_screen.dart';
+import '../features/sistema/asistentes_pasado_screen.dart';
 
 /// Rutas nombradas de la app. Las rutas de cada rol viven bajo un
 /// prefijo propio para poder protegerlas por prefijo en el redirect.
@@ -67,6 +68,8 @@ class AppRoutes {
   static const String carrerasSistema = '/admin/sistema/carreras';
   static const String cargarEventoPasado = '/admin/sistema/eventos/pasado';
   static const String editarEventoPasado = '/admin/sistema/eventos/:id/corregir';
+  static const String asistentesEventoPasado =
+      '/admin/sistema/eventos/:id/asistentes';
 
   // --- Validador temporal (prefijo /validador) ---
   static const String homeValidador = '/validador';
@@ -79,6 +82,8 @@ class AppRoutes {
   static String editarUsuarioPath(String id) => '/admin/sistema/usuarios/$id';
   static String editarEventoPasadoPath(String id) =>
       '/admin/sistema/eventos/$id/corregir';
+  static String asistentesEventoPasadoPath(String id) =>
+      '/admin/sistema/eventos/$id/asistentes';
 }
 
 /// Roles válidos, según el CHECK constraint de la tabla `usuarios`.
@@ -333,6 +338,13 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => EditarEventoScreen(
         eventoId: state.pathParameters['id']!,
         esPasado: true,
+      ),
+    ),
+    // Asistentes de un evento pasado (fase 8, paso 8.3).
+    GoRoute(
+      path: AppRoutes.asistentesEventoPasado,
+      builder: (context, state) => AsistentesPasadoScreen(
+        eventoId: state.pathParameters['id']!,
       ),
     ),
   ],

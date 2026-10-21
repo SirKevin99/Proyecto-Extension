@@ -222,11 +222,16 @@ class ResultadoFila {
   final bool reactivado;
   final String? error;
 
+  /// Alumno creado o existente de la fila (lo usa la carga de asistentes
+  /// de eventos pasados, fase 8). Null si la fila no tiene usuario.
+  final String? usuarioId;
+
   const ResultadoFila({
     required this.fila,
     required this.resultado,
     required this.reactivado,
     required this.error,
+    this.usuarioId,
   });
 
   String get resultadoLegible => switch (resultado) {
@@ -242,6 +247,7 @@ class ResultadoFila {
         resultado: m['resultado'] as String? ?? '',
         reactivado: m['reactivado'] as bool? ?? false,
         error: m['error'] as String?,
+        usuarioId: m['usuario_id'] as String?,
       );
 }
 

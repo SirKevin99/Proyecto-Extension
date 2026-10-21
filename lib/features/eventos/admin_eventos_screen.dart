@@ -405,14 +405,30 @@ class _TarjetaEventoAdmin extends ConsumerWidget {
             ],
 
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () =>
-                    context.push(AppRoutes.gestionAsistenciaPath(evento.id)),
-                icon: const Icon(Icons.fact_check_outlined, size: 18),
-                label: const Text('Asistencia'),
-              ),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      context.push(AppRoutes.gestionAsistenciaPath(evento.id)),
+                  icon: const Icon(Icons.fact_check_outlined, size: 18),
+                  label: const Text('Asistencia'),
+                ),
+                // Fase 8, paso 8.3: asistentes de los eventos pasados.
+                if (evento.cargaHistorica &&
+                    evento.estado == EstadoEvento.finalizado &&
+                    SessionSnapshot.instance.rol == RolUsuario.superadmin)
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await context.push(
+                          AppRoutes.asistentesEventoPasadoPath(evento.id));
+                      ref.invalidate(adminEventosProvider);
+                    },
+                    icon: const Icon(Icons.group_add_outlined, size: 18),
+                    label: const Text('Cargar asistentes'),
+                  ),
+              ],
             ),
           ],
         ),
